@@ -10,3 +10,7 @@ def hello():
 @app.get("/hello/{name}")
 def say_hello(name: str):
     return {"msg": f"Hello, {name}!"}
+
+@app.get("/add")
+def add(a: int, b: int):
+    return {"result": a + b}
