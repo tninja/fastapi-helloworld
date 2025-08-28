@@ -2,14 +2,17 @@ name: Daily Devotional
 
 on:
   schedule:
-    - cron: "0 15 * * *"   # 每天 UTC 15:00 运行（湾区清晨时段）
-  workflow_dispatch:        # 允许手动触发
+    # Runs at 15:00 UTC daily (early morning in Bay Area)
+    - cron: "0 15 * * *"
+  # Allows manual triggering
+  workflow_dispatch:
 
 permissions:
-  contents: write           # 允许工作流向仓库写入内容（commit）
+  # Allows the workflow to write content to the repository (commit)
+  contents: write
 
 jobs:
-  build:
+  generate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -18,12 +21,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Generate devotional
-        run: |
-          pip install python-dateutil
-          python scripts/generate_devotional.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/generate_devotional.py
 
       - name: Commit devotional
         run: |
