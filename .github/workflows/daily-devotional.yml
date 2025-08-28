@@ -3,7 +3,7 @@ name: Daily Devotional
 on:
   schedule:
     # Runs at 15:00 UTC daily (early morning in Bay Area)
-    - cron: "42 14 * * *"
+    - cron: "43 14 * * *"
   # Allows manual triggering
   workflow_dispatch:
 
