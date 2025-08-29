@@ -95,7 +95,7 @@ def comfort(q: ComfortQuery):
     try:
         # 使用 Chat Completions（也可换成 Responses API，按你的账号可用性选择）
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",  # 可换成你账户可用、性价比合适的模型
+            model="gpt-5-mini",  # 可换成你账户可用、性价比合适的模型
             messages=messages,
             temperature=0.7,
             response_format={"type": "json_object"},
