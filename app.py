@@ -97,7 +97,7 @@ def comfort(q: ComfortQuery):
         resp = client.chat.completions.create(
             model="gpt-5-mini",  # 可换成你账户可用、性价比合适的模型
             messages=messages,
-            temperature=0.7,
+            # temperature=0.7, # gpt-5-mini 不支持 temperature
             response_format={"type": "json_object"},
         )
         content = resp.choices[0].message.content
