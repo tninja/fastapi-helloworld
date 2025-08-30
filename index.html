@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>安慰经文助手 | Comfort Scriptures</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif; margin: 2rem auto; max-width: 760px; padding: 0 1rem; }
+    h1 { margin-bottom: .25rem; }
+    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 16px 0; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    label { display:block; font-weight:600; margin:.5rem 0 .25rem; }
+    input, textarea, select { width: 100%; padding: .6rem .75rem; border: 1px solid #e5e7eb; border-radius: 10px; outline: none; }
+    button { cursor:pointer; padding: .7rem 1rem; border-radius: 999px; border: 0; background:#111827; color:#fff; font-weight:600; }
+    button[disabled] { opacity:.6; cursor:not-allowed; }
+    .row { display:flex; gap:.75rem; align-items:center; }
+    .muted { color:#6b7280; font-size:.9rem; }
+    .passage { padding:.5rem .75rem; border-left:4px solid #11182710; background:#f9fafb; border-radius:8px; margin:.5rem 0; }
+    .error { color:#b91c1c; font-weight:600; }
+    pre { white-space:pre-wrap; word-break:break-word; }
+    .footer { color:#6b7280; font-size:.85rem; margin-top:2rem; }
+  </style>
+</head>
+<body>
+  <h1>安慰经文助手</h1>
+  <div class="muted">输入你的关键词或处境，我们将给出相应经文参考、简短灵修与祷告。</div>
+
+  <div class="card">
+    <label for="language">语言 Language</label>
+    <select id="language">
+      <option value="zh" selected>中文</option>
+      <option value="en">English</option>
+    </select>
+
+    <label for="kw">关键词 Keywords（用逗号分隔）</label>
+    <input id="kw" placeholder="例如：工作焦虑, 家庭责任, AI 变化" />
+
+    <label for="sit">处境描述 Situation (可选)</label>
+    <textarea id="sit" rows="5" placeholder="写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…"></textarea>
+
+    <div class="row" style="margin-top:.75rem">
+      <button id="go">获取安慰 Get comfort</button>
+      <span id="status" class="muted"></span>
+    </div>
+  </div>
+
+  <div id="result" class="card" style="display:none"></div>
+  <div id="err" class="error"></div>
+
+  <div class="footer">
+    前端托管在 GitHub Pages · 后端由 FastAPI (Render) 提供。为避免版权与版本差异，页面仅给出经文出处与极短摘句，请以你常用的译本核对上下文。
+  </div>
+
+  <script>
+    // TODO: 将下面的 API_BASE 改为你的 Render 域名（不含末尾斜杠）
+    // 例如："https://comfort-api.onrender.com"
+    const API_BASE = "https://fastapi-helloworld-od7w.onrender.com/comfort";
+
+    const el = (id) => document.getElementById(id);
+    const btn = el('go');
+    const out = el('result');
+    const err = el('err');
+    const status = el('status');
+
+    async function fetchComfort() {
+      err.textContent = "";
+      out.style.display = 'none';
+      out.innerHTML = '';
+
+      const body = {
+        language: el('language').value,
+        keywords: el('kw').value.trim(),
+        situation: el('sit').value.trim(),
+        max_passages: 3
+      };
+      if (!body.keywords) {
+        err.textContent = '请先填写关键词 / Please enter some keywords.';
+        return;
+      }
+
+      btn.disabled = true;
+      status.textContent = '生成中… Generating…';
+
+      try {
+        const res = await fetch(`${API_BASE}/comfort`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          throw new Error(`HTTP ${res.status}: ${t}`);
+        }
+        const data = await res.json();
+        renderResult(data, body.language);
+      } catch (e) {
+        console.error(e);
+        err.textContent = '请求失败：' + (e.message || e);
+      } finally {
+        btn.disabled = false;
+        status.textContent = '';
+      }
+    }
+
+    function renderResult(data, lang) {
+      const passages = data.passages || [];
+      const devotional = data.devotional || '';
+      const prayer = data.prayer || '';
+      const disclaimer = data.disclaimer || '';
+
+      const h = [];
+      if (passages.length) {
+        h.push(`<h2>推荐经文 Passages</h2>`);
+        passages.forEach(p => {
+          const quote = p.short_quote ? ` · <em>${escapeHtml(p.short_quote)}</em>` : '';
+          const reason = p.reason ? `<div class="muted">${escapeHtml(p.reason)}</div>` : '';
+          h.push(`<div class="passage"><strong>${escapeHtml(p.ref)}</strong>${quote}${reason}</div>`);
+        });
+      }
+      if (devotional) {
+        h.push(`<h2>${lang.startsWith('zh') ? '灵修解读' : 'Devotional'}</h2>`);
+        h.push(`<pre>${escapeHtml(devotional)}</pre>`);
+      }
+      if (prayer) {
+        h.push(`<h2>${lang.startsWith('zh') ? '祷告' : 'Prayer'}</h2>`);
+        h.push(`<pre>${escapeHtml(prayer)}</pre>`);
+      }
+      if (disclaimer) {
+        h.push(`<div class="muted">${escapeHtml(disclaimer)}</div>`);
+      }
+
+      out.innerHTML = h.join('\n');
+      out.style.display = 'block';
+    }
+
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
+    }
+
+    btn.addEventListener('click', fetchComfort);
+  </script>
+</body>
+</html>
