@@ -25,14 +25,25 @@
   <div class="muted">输入你的关键词或处境，我们将给出相应经文参考、简短灵修与祷告。</div>
 
   <div class="card">
-    <label for="language">语言 Language</label>
-    <select id="language">
-      <option value="zh" selected>中文</option>
-      <option value="en">English</option>
-    </select>
+    <div class="row">
+      <div style="flex-grow:1">
+        <label for="language">语言 Language</label>
+        <select id="language">
+          <option value="zh" selected>中文</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div>
+        <label for="max_passages">经文数</label>
+        <input type="number" id="max_passages" value="3" min="1" max="10" style="width: 60px;" />
+      </div>
+    </div>
 
     <label for="sit">处境描述 Situation</label>
     <textarea id="sit" rows="5" placeholder="写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…"></textarea>
+
+    <label for="guide">额外引导词 Guidance (可选)</label>
+    <input id="guide" placeholder="例如：请多引用诗篇；请避免旧约经文" />
 
     <div class="row" style="margin-top:.75rem">
       <button id="go">获取安慰 Get comfort</button>
@@ -66,7 +77,8 @@
       const body = {
         language: el('language').value,
         situation: el('sit').value.trim(),
-        max_passages: 3
+        guidance: el('guide').value.trim(),
+        max_passages: parseInt(el('max_passages').value, 10) || 3
       };
       if (!body.situation) {
         err.textContent = '请先填写处境描述 / Please describe your situation.';

@@ -28,6 +28,7 @@ class ComfortQuery(BaseModel):
     situation: str                     # 处境描述
     faith_background: Optional[str] = "christian"
     max_passages: int = 3              # 返回几段经文（1-3）
+    guidance: Optional[str] = ""       # 额外引导词
 
 class Passage(BaseModel):
     ref: str
@@ -55,6 +56,7 @@ Do NOT include long verbatim quotes from copyrighted translations.
 USER_PROMPT_TMPL = """User language: {language}
 Faith background: {faith_background}
 Situation detail: {situation}
+Additional guidance: {guidance}
 
 Return JSON with fields:
 - passages: array of at most {max_passages} objects with fields:
@@ -75,7 +77,8 @@ def build_messages(q: ComfortQuery):
         language=q.language,
         faith_background=q.faith_background or "christian",
         situation=q.situation,
-        max_passages=max(1, min(q.max_passages, 3)),
+        guidance=q.guidance or "None",
+        max_passages=max(1, min(q.max_passages, 10)),
         lang_unit=lang_unit,
     )
     return [
@@ -105,7 +108,7 @@ def comfort(q: ComfortQuery):
         data = json.loads(content)
 
         # 约束：裁剪 passages 数量与短摘长度，避免版权/超长
-        max_passages = max(1, min(q.max_passages, 3))
+        max_passages = max(1, min(q.max_passages, 10))
         passages = (data.get("passages") or [])[:max_passages]
         for p in passages:
             sq = (p.get("short_quote") or "").strip()
