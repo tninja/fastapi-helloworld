@@ -95,6 +95,7 @@
       } catch (e) {
         console.error(e);
         err.textContent = '请求失败：' + (e.message || e);
+        console.log('Fetch failed detail =>', e);
       } finally {
         btn.disabled = false;
         status.textContent = '';

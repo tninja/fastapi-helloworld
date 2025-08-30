@@ -12,8 +12,8 @@ app = FastAPI(title="Comfort API (OpenAI SDK)")
 
 # 修改为你的 GitHub Pages 域名（用户页和/或项目页）
 ALLOWED_ORIGINS = [
-    "https://<your-github-username>.github.io",
-    "https://<your-github-username>.github.io/<your-frontend-repo>"
+    "https://tninja.github.io",
+    "https://tninja.github.io/fastapi-helloworld"
 ]
 
 app.add_middleware(
