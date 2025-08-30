@@ -1,16 +1,16 @@
 import os, json
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 
-# 直接用 OpenAI 官方 SDK；它会从 OPENAI_API_KEY 环境变量读取密钥
+# Use OpenAI's official SDK; it reads the key from the OPENAI_API_KEY environment variable
 client = OpenAI()
 
 app = FastAPI(title="Comfort API (OpenAI SDK)")
 
-# 修改为你的 GitHub Pages 域名（用户页和/或项目页）
+# Change to your GitHub Pages domain (user page and/or project page)
 ALLOWED_ORIGINS = [
     "https://tninja.github.io",
     "https://tninja.github.io/fastapi-helloworld"
@@ -24,11 +24,11 @@ app.add_middleware(
 )
 
 class ComfortQuery(BaseModel):
-    language: str = "zh"               # "zh" 或 "en"
-    situation: str                     # 处境描述
+    language: str = "zh"
+    situation: str
     faith_background: Optional[str] = "christian"
-    max_passages: int = 3              # 返回几段经文（1-3）
-    guidance: Optional[str] = ""       # 额外引导词
+    max_passages: int = 3
+    guidance: Optional[str] = ""
 
 class Passage(BaseModel):
     ref: str
@@ -71,8 +71,8 @@ Return JSON with fields:
 Use the requested language for everything.
 """
 
-def build_messages(q: ComfortQuery):
-    lang_unit = "字" if q.language.startswith("zh") else "words"
+def build_messages(q: ComfortQuery) -> List[Dict[str, str]]:
+    lang_unit = "characters" if q.language.startswith("zh") else "words"
     uprompt = USER_PROMPT_TMPL.format(
         language=q.language,
         faith_background=q.faith_background or "christian",
@@ -86,40 +86,41 @@ def build_messages(q: ComfortQuery):
         {"role": "user", "content": uprompt},
     ]
 
-@app.post("/comfort", response_model=ComfortResponse)
-def comfort(q: ComfortQuery):
-    # 基本校验
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise HTTPException(status_code=500, detail="Server missing OPENAI_API_KEY")
-
+def get_comfort_from_openai(q: ComfortQuery) -> Dict[str, Any]:
+    """
+    Builds the prompt, calls the OpenAI API, and processes the response.
+    This function is designed to be testable independently of the FastAPI framework.
+    """
     messages = build_messages(q)
 
     try:
-        # 使用 Chat Completions（也可换成 Responses API，按你的账号可用性选择）
         resp = client.chat.completions.create(
-            model="gpt-5-mini",  # 可换成你账户可用、性价比合适的模型
+            model="gpt-4o-mini",
             messages=messages,
-            # temperature=0.7, # gpt-5-mini 不支持 temperature
             response_format={"type": "json_object"},
         )
         content = resp.choices[0].message.content
         if not content:
-            raise HTTPException(status_code=502, detail="LLM returned empty content")
+            raise ValueError("LLM returned empty content")
+        
         data = json.loads(content)
 
-        # 约束：裁剪 passages 数量与短摘长度，避免版权/超长
+        # Constraint: Trim passages count and short quote length to avoid copyright/length issues
         max_passages = max(1, min(q.max_passages, 10))
         passages = (data.get("passages") or [])[:max_passages]
         for p in passages:
             sq = (p.get("short_quote") or "").strip()
             if q.language.startswith("zh"):
-                if len(sq) > 40:  # 粗略控制中文长度
+                if len(sq) > 40:
                     p["short_quote"] = ""
             else:
                 if len(sq.split()) > 20:
                     p["short_quote"] = ""
-
         data["passages"] = passages
+
+        # Ensure other required fields have default values if missing from LLM response
+        data.setdefault("devotional", "")
+        data.setdefault("prayer", "")
 
         if not data.get("disclaimer"):
             data["disclaimer"] = (
@@ -127,8 +128,25 @@ def comfort(q: ComfortQuery):
                 if q.language.startswith("zh")
                 else "Please verify these references in your preferred Bible translation; the reflection is for devotional support."
             )
-
+        
         return data
 
+    except json.JSONDecodeError as e:
+        raise ValueError(f"LLM returned invalid JSON: {e}") from e
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LLM error: {e}")
+        raise RuntimeError(f"LLM API call failed: {e}") from e
+
+@app.post("/comfort", response_model=ComfortResponse)
+def comfort(q: ComfortQuery):
+    # Basic validation
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="Server missing OPENAI_API_KEY")
+
+    try:
+        result = get_comfort_from_openai(q)
+        return result
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        # Catch any other unexpected errors
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
