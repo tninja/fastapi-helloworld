@@ -31,10 +31,7 @@
       <option value="en">English</option>
     </select>
 
-    <label for="kw">关键词 Keywords（用逗号分隔）</label>
-    <input id="kw" placeholder="例如：工作焦虑, 家庭责任, AI 变化" />
-
-    <label for="sit">处境描述 Situation (可选)</label>
+    <label for="sit">处境描述 Situation</label>
     <textarea id="sit" rows="5" placeholder="写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…"></textarea>
 
     <div class="row" style="margin-top:.75rem">
@@ -68,12 +65,11 @@
 
       const body = {
         language: el('language').value,
-        keywords: el('kw').value.trim(),
         situation: el('sit').value.trim(),
         max_passages: 3
       };
-      if (!body.keywords) {
-        err.textContent = '请先填写关键词 / Please enter some keywords.';
+      if (!body.situation) {
+        err.textContent = '请先填写处境描述 / Please describe your situation.';
         return;
       }
 

@@ -25,8 +25,7 @@ app.add_middleware(
 
 class ComfortQuery(BaseModel):
     language: str = "zh"               # "zh" 或 "en"
-    keywords: str                      # 关键词：如“工作焦虑、AI变动、家庭责任”
-    situation: Optional[str] = ""      # 处境描述
+    situation: str                     # 处境描述
     faith_background: Optional[str] = "christian"
     max_passages: int = 3              # 返回几段经文（1-3）
 
@@ -55,7 +54,6 @@ Do NOT include long verbatim quotes from copyrighted translations.
 
 USER_PROMPT_TMPL = """User language: {language}
 Faith background: {faith_background}
-User keywords: {keywords}
 Situation detail: {situation}
 
 Return JSON with fields:
@@ -76,8 +74,7 @@ def build_messages(q: ComfortQuery):
     uprompt = USER_PROMPT_TMPL.format(
         language=q.language,
         faith_background=q.faith_background or "christian",
-        keywords=q.keywords,
-        situation=q.situation or "",
+        situation=q.situation,
         max_passages=max(1, min(q.max_passages, 3)),
         lang_unit=lang_unit,
     )
