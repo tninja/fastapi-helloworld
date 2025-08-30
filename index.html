@@ -114,7 +114,8 @@
         passages.forEach(p => {
           const quote = p.short_quote ? ` · <em>${escapeHtml(p.short_quote)}</em>` : '';
           const reason = p.reason ? `<div class="muted">${escapeHtml(p.reason)}</div>` : '';
-          h.push(`<div class="passage"><strong>${escapeHtml(p.ref)}</strong>${quote}${reason}</div>`);
+          const full_text = p.full_passage_text ? `<pre style="margin-top: .5rem;">${escapeHtml(p.full_passage_text)}</pre>` : '';
+          h.push(`<div class="passage"><strong>${escapeHtml(p.ref)}</strong>${quote}${reason}${full_text}</div>`);
         });
       }
       if (devotional) {
