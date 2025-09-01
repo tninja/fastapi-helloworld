@@ -64,7 +64,7 @@ Return JSON with fields:
   - ref (string, e.g., "Psalm 46:1-3" or "诗篇 46:1-3")
   - short_quote (string, <= 20 words/chars; a paraphrase or public-domain-short snippet; MAY be empty)
   - reason (string, 1-2 sentences why this fits)
-  - full_passage_text (string, the full text of the passage from a public domain version like WEB or CUV)
+  - full_passage_text (string, the full text of the passage from a public domain version. Use WEB (World English Bible) if user language is English, use CUV (Chinese Union Version) if user language is 中文)
 - devotional: a 300-500 {lang_unit} pastoral reflection applying these passages to the user's situation.
 - prayer: 4-8 sentences prayer.
 - disclaimer: one sentence kindly asking the user to verify in their preferred translation.
