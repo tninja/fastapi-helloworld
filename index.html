@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>一束光，一句话: 安慰经文助手 | Comfort Scriptures</title>
+  <title>一束光，一句话: 安慰经文助手</title>
   <style>
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
@@ -31,33 +31,33 @@
   </style>
 </head>
 <body>
-  <h1>一束光，一句话 | A Ray of Light, A Word of Grace</h1>
-  <h2>安慰经文助手</h2>
-  <div class="muted">输入你的处境，我们将给出相应经文参考、简短灵修与祷告。</div>
+  <h1 id="header1"></h1>
+  <h2 id="header2"></h2>
+  <div class="muted" id="intro"></div>
 
   <div class="card">
     <div class="row">
       <div style="flex-grow:1">
-        <label for="language">语言 Language</label>
+        <label for="language" id="langLabel"></label>
         <select id="language">
           <option value="zh" selected>中文</option>
           <option value="en">English</option>
         </select>
       </div>
       <div>
-        <label for="max_passages">经文数</label>
+        <label for="max_passages" id="passagesLabel"></label>
         <input type="number" id="max_passages" value="3" min="1" max="10" style="width: 60px;" />
       </div>
     </div>
 
-    <label for="sit">处境描述 Situation</label>
-    <textarea id="sit" rows="5" placeholder="写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…"></textarea>
+    <label for="sit" id="situationLabel"></label>
+    <textarea id="sit" rows="5"></textarea>
 
-    <label for="guide">额外引导词 Guidance (可选)</label>
-    <input id="guide" placeholder="例如：请多引用诗篇；请避免旧约经文" />
+    <label for="guide" id="guidanceLabel"></label>
+    <input id="guide" />
 
     <div class="row" style="margin-top:.75rem">
-      <button id="go">获取安慰 Get comfort</button>
+      <button id="go"></button>
       <span id="status" class="muted"></span>
     </div>
   </div>
@@ -65,99 +65,173 @@
   <div id="result" class="card" style="display:none"></div>
   <div id="err" class="error"></div>
 
-  <div class="footer">
-    前端托管在 GitHub Pages · 后端由 FastAPI (Render) 提供。为避免版权与版本差异，页面仅给出经文出处与极短摘句，请以你常用的译本核对上下文。
-  </div>
+  <div class="footer" id="footer"></div>
 
   <script>
-    // TODO: 将下面的 API_BASE 改为你的 Render 域名（不含末尾斜杠）
-    // 例如："https://comfort-api.onrender.com"
-    const API_BASE = "https://fastapi-helloworld-od7w.onrender.com";
+    document.addEventListener('DOMContentLoaded', function() {
+      const API_BASE = "https://fastapi-helloworld-od7w.onrender.com";
 
-    const el = (id) => document.getElementById(id);
-    const btn = el('go');
-    const out = el('result');
-    const err = el('err');
-    const status = el('status');
+      const el = (id) => document.getElementById(id);
+      const btn = el('go');
+      const out = el('result');
+      const err = el('err');
+      const status = el('status');
+      const langSelect = el('language');
 
-    async function fetchComfort() {
-      err.textContent = "";
-      out.style.display = 'none';
-      out.innerHTML = '';
-
-      const body = {
-        language: el('language').value,
-        situation: el('sit').value.trim(),
-        guidance: el('guide').value.trim(),
-        max_passages: parseInt(el('max_passages').value, 10) || 3
-      };
-      if (!body.situation) {
-        err.textContent = '请先填写处境描述 / Please describe your situation.';
-        return;
-      }
-
-      btn.disabled = true;
-      status.textContent = '生成中… 需要要等待待一段时间大概10秒 / Generating..';
-
-      try {
-        const res = await fetch(`${API_BASE}/comfort`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-          const t = await res.text();
-          throw new Error(`HTTP ${res.status}: ${t}`);
+      const translations = {
+        zh: {
+          title: "一束光，一句话: 安慰经文助手",
+          header1: "一束光，一句话",
+          header2: "安慰经文助手",
+          intro: "输入你的处境，我们将给出相应经文参考、简短灵修与祷告。",
+          langLabel: "语言",
+          passagesLabel: "经文数",
+          situationLabel: "处境描述",
+          situationPlaceholder: "写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…",
+          guidanceLabel: "额外引导 (可选)",
+          guidancePlaceholder: "例如：请多引用诗篇；请避免旧约经文",
+          buttonText: "获取安慰",
+          statusGenerating: "生成中，请稍候 (约10秒)...",
+          errorSituation: "请先填写处境描述。",
+          errorRequestFailed: "请求失败：",
+          footer: "前端托管在 GitHub Pages · 后端由 FastAPI (Render) 提供。为避免版权与版本差异，页面仅给出经文出处与极短摘句，请以你常用的译本核对上下文。",
+          passagesTitle: "推荐经文",
+          devotionalTitle: "灵修解读",
+          prayerTitle: "祷告"
+        },
+        en: {
+          title: "Comfort Scriptures: A Ray of Light, A Word of Grace",
+          header1: "A Ray of Light, A Word of Grace",
+          header2: "Comfort Scriptures Assistant",
+          intro: "Describe your situation, and we will provide relevant scripture references, a short devotional, and a prayer.",
+          langLabel: "Language",
+          passagesLabel: "Passages",
+          situationLabel: "Describe your situation",
+          situationPlaceholder: "Write down what you are going through, e.g., project delays, fear of layoffs, taking care of children...",
+          guidanceLabel: "Optional Guidance",
+          guidancePlaceholder: "e.g., please quote more from Psalms; please avoid Old Testament verses",
+          buttonText: "Get Comfort",
+          statusGenerating: "Generating... this may take about 10 seconds.",
+          errorSituation: "Please describe your situation first.",
+          errorRequestFailed: "Request failed: ",
+          footer: "Frontend hosted on GitHub Pages · Backend powered by FastAPI (Render). To avoid copyright and version differences, this page only provides scripture references and very short quotes. Please check the context in your preferred translation.",
+          passagesTitle: "Recommended Passages",
+          devotionalTitle: "Devotional",
+          prayerTitle: "Prayer"
         }
-        const data = await res.json();
-        renderResult(data, body.language);
-      } catch (e) {
-        console.error(e);
-        err.textContent = '请求失败：' + (e.message || e);
-        console.log('Fetch failed detail =>', e);
-      } finally {
-        btn.disabled = false;
-        status.textContent = '';
-      }
-    }
+      };
 
-    function renderResult(data, lang) {
-      const passages = data.passages || [];
-      const devotional = data.devotional || '';
-      const prayer = data.prayer || '';
-      const disclaimer = data.disclaimer || '';
-
-      const h = [];
-      if (passages.length) {
-        h.push(`<h2>推荐经文 Passages</h2>`);
-        passages.forEach(p => {
-          const quote = p.short_quote ? ` · <em>${escapeHtml(p.short_quote)}</em>` : '';
-          const reason = p.reason ? `<div class="muted">${escapeHtml(p.reason)}</div>` : '';
-          const full_text = p.full_passage_text ? `<pre style="margin-top: .5rem;">${escapeHtml(p.full_passage_text)}</pre>` : '';
-          h.push(`<div class="passage"><strong>${escapeHtml(p.ref)}</strong>${quote}${reason}${full_text}</div>`);
-        });
-      }
-      if (devotional) {
-        h.push(`<h2>${lang.startsWith('zh') ? '灵修解读' : 'Devotional'}</h2>`);
-        h.push(`<pre>${escapeHtml(devotional)}</pre>`);
-      }
-      if (prayer) {
-        h.push(`<h2>${lang.startsWith('zh') ? '祷告' : 'Prayer'}</h2>`);
-        h.push(`<pre>${escapeHtml(prayer)}</pre>`);
-      }
-      if (disclaimer) {
-        h.push(`<div class="muted">${escapeHtml(disclaimer)}</div>`);
+      function updateUI(lang) {
+        const t = translations[lang];
+        document.title = t.title;
+        el('header1').textContent = t.header1;
+        el('header2').textContent = t.header2;
+        el('intro').textContent = t.intro;
+        el('langLabel').textContent = t.langLabel;
+        el('passagesLabel').textContent = t.passagesLabel;
+        el('situationLabel').textContent = t.situationLabel;
+        el('sit').placeholder = t.situationPlaceholder;
+        el('guidanceLabel').textContent = t.guidanceLabel;
+        el('guide').placeholder = t.guidancePlaceholder;
+        btn.textContent = t.buttonText;
+        el('footer').textContent = t.footer;
+        document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : 'en';
       }
 
-      out.innerHTML = h.join('\n');
-      out.style.display = 'block';
-    }
+      async function fetchComfort() {
+        const lang = langSelect.value;
+        const t = translations[lang];
 
-    function escapeHtml(str){
-      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
-    }
+        err.textContent = "";
+        out.style.display = 'none';
+        out.innerHTML = '';
 
-    btn.addEventListener('click', fetchComfort);
+        const body = {
+          language: lang,
+          situation: el('sit').value.trim(),
+          guidance: el('guide').value.trim(),
+          max_passages: parseInt(el('max_passages').value, 10) || 3
+        };
+        if (!body.situation) {
+          err.textContent = t.errorSituation;
+          return;
+        }
+
+        btn.disabled = true;
+        status.textContent = t.statusGenerating;
+
+        try {
+          const res = await fetch(`${API_BASE}/comfort`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text}`);
+          }
+          const data = await res.json();
+          renderResult(data, lang);
+        } catch (e) {
+          console.error(e);
+          err.textContent = t.errorRequestFailed + (e.message || e);
+          console.log('Fetch failed detail =>', e);
+        } finally {
+          btn.disabled = false;
+          status.textContent = '';
+        }
+      }
+
+      function renderResult(data, lang) {
+        const t = translations[lang];
+        const passages = data.passages || [];
+        const devotional = data.devotional || '';
+        const prayer = data.prayer || '';
+        const disclaimer = data.disclaimer || '';
+
+        const h = [];
+        if (passages.length) {
+          h.push(`<h2>${t.passagesTitle}</h2>`);
+          passages.forEach(p => {
+            const quote = p.short_quote ? ` · <em>${escapeHtml(p.short_quote)}</em>` : '';
+            const reason = p.reason ? `<div class="muted">${escapeHtml(p.reason)}</div>` : '';
+            const full_text = p.full_passage_text ? `<pre style="margin-top: .5rem;">${escapeHtml(p.full_passage_text)}</pre>` : '';
+            h.push(`<div class="passage"><strong>${escapeHtml(p.ref)}</strong>${quote}${reason}${full_text}</div>`);
+          });
+        }
+        if (devotional) {
+          h.push(`<h2>${t.devotionalTitle}</h2>`);
+          h.push(`<pre>${escapeHtml(devotional)}</pre>`);
+        }
+        if (prayer) {
+          h.push(`<h2>${t.prayerTitle}</h2>`);
+          h.push(`<pre>${escapeHtml(prayer)}</pre>`);
+        }
+        if (disclaimer) {
+          h.push(`<div class="muted">${escapeHtml(disclaimer)}</div>`);
+        }
+
+        out.innerHTML = h.join('\n');
+        out.style.display = 'block';
+      }
+
+      function escapeHtml(str){
+        const map = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        };
+        return String(str).replace(/[&<"']/g, s => map[s]);
+      }
+
+      btn.addEventListener('click', fetchComfort);
+      langSelect.addEventListener('change', (e) => updateUI(e.target.value));
+
+      // Initial UI setup
+      updateUI(langSelect.value);
+    });
   </script>
 </body>
 </html>
