@@ -1,7 +1,8 @@
-* Bible comfort API
+* [[https://tninja.github.io/fastapi-helloworld/][A Ray of Light, A Word of Grace: Comfort Scriptures Assistant]]
 
-- Deploy to [[https://dashboard.render.com/web/srv-d2n7rtv5r7bs73f7gpj0][render]]
+- Describe your situation, and we will provide relevant scripture references, a short devotional, and a prayer.
 
-** Github Page for this
+* Infrastructure
 
-https://tninja.github.io/fastapi-helloworld/
+- Frontend hosted on GitHub Pages · Backend powered by FastAPI ([[https://dashboard.render.com/web/srv-d2n7rtv5r7bs73f7gpj0][Render]]). To avoid copyright and version differences, this page only provides scripture references and very short quotes. Please check the context in your preferred translation.
+
