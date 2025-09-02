@@ -77,6 +77,7 @@
       const err = el('err');
       const status = el('status');
       const langSelect = el('language');
+      const ttsCache = { dev: null, pray: null };
 
       const translations = {
         zh: {
@@ -230,14 +231,42 @@
         if (playDev) {
           playDev.addEventListener('click', async () => {
             const text = (document.getElementById('devotionalText')?.textContent || '').trim();
-            await synthesizeAndPlay(text, lang, 'audioDev', 'downloadDev', playDev);
+            if (ttsCache.dev) {
+              const audio = document.getElementById('audioDev');
+              const link = document.getElementById('downloadDev');
+              audio.src = ttsCache.dev;
+              audio.style.display = 'block';
+              if (link) { link.href = ttsCache.dev; link.style.display = 'inline-block'; }
+              try { await audio.play(); } catch (_) {}
+            } else {
+              await synthesizeAndPlay(text, lang, 'audioDev', 'downloadDev', playDev);
+            }
           });
         }
         if (playPrayer) {
           playPrayer.addEventListener('click', async () => {
             const text = (document.getElementById('prayerText')?.textContent || '').trim();
-            await synthesizeAndPlay(text, lang, 'audioPrayer', 'downloadPrayer', playPrayer);
+            if (ttsCache.pray) {
+              const audio = document.getElementById('audioPrayer');
+              const link = document.getElementById('downloadPrayer');
+              audio.src = ttsCache.pray;
+              audio.style.display = 'block';
+              if (link) { link.href = ttsCache.pray; link.style.display = 'inline-block'; }
+              try { await audio.play(); } catch (_) {}
+            } else {
+              await synthesizeAndPlay(text, lang, 'audioPrayer', 'downloadPrayer', playPrayer);
+            }
           });
+        }
+
+        // Pre-generate audio in background to save time
+        if (devotional) {
+          const text = (document.getElementById('devotionalText')?.textContent || '').trim();
+          synthesizeToCache(text, lang, 'audioDev', 'downloadDev', 'dev');
+        }
+        if (prayer) {
+          const text = (document.getElementById('prayerText')?.textContent || '').trim();
+          synthesizeToCache(text, lang, 'audioPrayer', 'downloadPrayer', 'pray');
         }
       }
 
@@ -290,6 +319,28 @@
           err.textContent = prefix + (e.message || e);
         } finally {
           if (buttonEl) buttonEl.disabled = false;
+        }
+      }
+
+      async function synthesizeToCache(text, lang, audioId, linkId, cacheKey) {
+        if (!text) return;
+        try {
+          const res = await fetch(`${API_BASE}/tts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, language: lang, format: 'mp3' })
+          });
+          if (!res.ok) return;
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          ttsCache[cacheKey] = url;
+          // Pre-bind sources but do not reveal controls yet
+          const audio = document.getElementById(audioId);
+          const link = document.getElementById(linkId);
+          if (audio) { audio.src = url; }
+          if (link) { link.href = url; }
+        } catch (_) {
+          // ignore background errors
         }
       }
     });
