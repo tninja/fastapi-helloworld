@@ -282,10 +282,30 @@
       }
 
       btn.addEventListener('click', fetchComfort);
-      langSelect.addEventListener('change', (e) => updateUI(e.target.value));
+      langSelect.addEventListener('change', (e) => {
+        const v = e.target.value;
+        try { localStorage.setItem('preferredLang', v); } catch (_) {}
+        updateUI(v);
+      });
 
-      // Initial UI setup
-      updateUI(langSelect.value);
+      // Detect default language from last saved value or browser setting
+      function detectDefaultLanguage() {
+        try {
+          const saved = localStorage.getItem('preferredLang');
+          if (saved === 'zh' || saved === 'en') return saved;
+        } catch (_) {}
+        const nav = navigator;
+        const candidates = [];
+        if (nav.languages && Array.isArray(nav.languages)) candidates.push(...nav.languages);
+        if (nav.language) candidates.push(nav.language);
+        const found = (candidates.find(l => String(l).toLowerCase().startsWith('zh')) ? 'zh' : 'en');
+        return found;
+      }
+
+      // Initial UI setup with detected default
+      const defaultLang = detectDefaultLanguage();
+      langSelect.value = defaultLang;
+      updateUI(defaultLang);
 
       async function synthesizeAndPlay(text, lang, audioId, linkId, buttonEl) {
         if (!text) return;
