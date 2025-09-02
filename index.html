@@ -201,11 +201,21 @@
         }
         if (devotional) {
           h.push(`<h2>${t.devotionalTitle}</h2>`);
-          h.push(`<pre>${escapeHtml(devotional)}</pre>`);
+          h.push(`<pre id="devotionalText">${escapeHtml(devotional)}</pre>`);
+          h.push(`<div class="row" style="margin-top:.5rem">`
+            + `<button id=\"playDev\">${lang.startsWith('zh') ? '播放灵修' : 'Play Devotional'}</button>`
+            + `<audio id=\"audioDev\" controls style=\"display:none\"></audio>`
+            + `<a id=\"downloadDev\" style=\"display:none; margin-left:.5rem\" download=\"devotional.mp3\">${lang.startsWith('zh') ? '下载 MP3' : 'Download MP3'}</a>`
+            + `</div>`);
         }
         if (prayer) {
           h.push(`<h2>${t.prayerTitle}</h2>`);
-          h.push(`<pre>${escapeHtml(prayer)}</pre>`);
+          h.push(`<pre id="prayerText">${escapeHtml(prayer)}</pre>`);
+          h.push(`<div class="row" style="margin-top:.5rem">`
+            + `<button id=\"playPrayer\">${lang.startsWith('zh') ? '播放祷告' : 'Play Prayer'}</button>`
+            + `<audio id=\"audioPrayer\" controls style=\"display:none\"></audio>`
+            + `<a id=\"downloadPrayer\" style=\"display:none; margin-left:.5rem\" download=\"prayer.mp3\">${lang.startsWith('zh') ? '下载 MP3' : 'Download MP3'}</a>`
+            + `</div>`);
         }
         if (disclaimer) {
           h.push(`<div class="muted">${escapeHtml(disclaimer)}</div>`);
@@ -213,6 +223,22 @@
 
         out.innerHTML = h.join('\n');
         out.style.display = 'block';
+
+        // Attach TTS handlers
+        const playDev = document.getElementById('playDev');
+        const playPrayer = document.getElementById('playPrayer');
+        if (playDev) {
+          playDev.addEventListener('click', async () => {
+            const text = (document.getElementById('devotionalText')?.textContent || '').trim();
+            await synthesizeAndPlay(text, lang, 'audioDev', 'downloadDev', playDev);
+          });
+        }
+        if (playPrayer) {
+          playPrayer.addEventListener('click', async () => {
+            const text = (document.getElementById('prayerText')?.textContent || '').trim();
+            await synthesizeAndPlay(text, lang, 'audioPrayer', 'downloadPrayer', playPrayer);
+          });
+        }
       }
 
       function escapeHtml(str){
@@ -231,6 +257,41 @@
 
       // Initial UI setup
       updateUI(langSelect.value);
+
+      async function synthesizeAndPlay(text, lang, audioId, linkId, buttonEl) {
+        if (!text) return;
+        try {
+          if (buttonEl) buttonEl.disabled = true;
+          const res = await fetch(`${API_BASE}/tts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, language: lang, format: 'mp3' })
+          });
+          if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(`HTTP ${res.status}: ${msg}`);
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = document.getElementById(audioId);
+          const link = document.getElementById(linkId);
+          if (audio) {
+            audio.src = url;
+            audio.style.display = 'block';
+            try { await audio.play(); } catch (_) {}
+          }
+          if (link) {
+            link.href = url;
+            link.style.display = 'inline-block';
+          }
+        } catch (e) {
+          console.error('TTS error', e);
+          const prefix = lang.startsWith('zh') ? '语音合成失败：' : 'TTS failed: ';
+          err.textContent = prefix + (e.message || e);
+        } finally {
+          if (buttonEl) buttonEl.disabled = false;
+        }
+      }
     });
   </script>
 </body>
