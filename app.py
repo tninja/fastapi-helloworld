@@ -67,6 +67,8 @@ DO NOT mix languages. All output, including Bible references, must be in the sel
 Propose Bible passages (book chapter:verse), fitting the user's situation.
 For quotes: provide at most a very short paraphrase (<= 20 words/chars) or leave empty.
 Write a longer pastoral devotional (300-500 zh characters / 300-400 English words) and a prayer (4-8 sentences).
+Begin the devotional with 1-2 empathetic sentences acknowledging the user's feelings and situation before offering guidance.
+Use validating, non-judgmental, warm language; avoid clichés and platitudes.
 Avoid doctrinal disputes, be comforting and practical.
 Return STRICT JSON only, matching the schema the user supplies.
 If unsure about an exact verse, choose one you are confident in.
@@ -80,11 +82,11 @@ Additional guidance: {guidance}
 
 Return JSON with fields:
 - passages: array of at most {max_passages} objects with fields:
-  - ref (string, e.g., "Psalm 46:1-3" or "诗篇 46:1-3")
+  - ref (string, e.g., "Psalm 46:1-3" or localized equivalent)
   - short_quote (string, <= 20 words/chars; a paraphrase or public-domain-short snippet; MAY be empty)
   - reason (string, 1-2 sentences why this fits)
-  - full_passage_text (string, the full text of the passage from a public domain version. Use WEB (World English Bible) if user language is English, use CUV (Chinese Union Version) if user language is 中文)
-- devotional: a 300-500 {lang_unit} pastoral reflection applying these passages to the user's situation.
+  - full_passage_text (string, the full text of the passage from a public domain version. Use WEB (World English Bible) if user language is English, use CUV (Chinese Union Version) if user language is Chinese)
+- devotional: a 300-500 {lang_unit} pastoral reflection applying these passages to the user's situation. Begin with 1-2 empathetic sentences acknowledging the user's feelings and context before offering guidance.
 - prayer: 4-8 sentences prayer.
 - disclaimer: one sentence kindly asking the user to verify in their preferred translation.
 
