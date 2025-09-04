@@ -3,9 +3,7 @@ import os
 import shutil
 import subprocess
 import time
-from app import (
-    generate_tts_audio,
-)
+from tts_service import TTSService
 from openai import OpenAI
 
 if __name__ == '__main__':
@@ -16,15 +14,15 @@ if __name__ == '__main__':
 class TestTTSGenerationIntegration(unittest.TestCase):
     def test_generate_tts_audio_mp3_real(self):
         client = OpenAI()  # uses env OPENAI_API_KEY
+        service = TTSService(openai_client=client)
         tmp_path = None
         try:
             start = time.perf_counter()
-            tmp_path, media_type = generate_tts_audio(
+            tmp_path, media_type = service.generate_audio(
                 text="This is a short devotional audio test.",
                 language="en",
                 voice=None,
                 fmt="mp3",
-                openai_client=client,
             )
             elapsed = time.perf_counter() - start
             self.assertTrue(os.path.exists(tmp_path), "Temp audio file should exist")
@@ -44,14 +42,14 @@ class TestTTSGenerationIntegration(unittest.TestCase):
 
     def test_generate_tts_audio_wav_real(self):
         client = OpenAI()
+        service = TTSService(openai_client=client)
         tmp_path = None
         try:
-            tmp_path, media_type = generate_tts_audio(
+            tmp_path, media_type = service.generate_audio(
                 text="这是一个中文语音测试。愿你平安。",
                 language="zh",
                 voice=None,
                 fmt="wav",
-                openai_client=client,
             )
             self.assertTrue(os.path.exists(tmp_path))
             self.assertEqual(media_type, "audio/wav")
