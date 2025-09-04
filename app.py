@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
-from comfort_service import ComfortService, ComfortQuery, ComfortResponse
+from bible_comfort_service import BibleComfortService, ComfortQuery, ComfortResponse
 from tts_service import TTSRequest, TTSService
 
 def _init_openai_client() -> Optional[OpenAI]:
@@ -20,7 +20,7 @@ def _init_openai_client() -> Optional[OpenAI]:
 client: Optional[OpenAI] = _init_openai_client()
 
 # Instantiate services
-comfort_service = ComfortService()
+comfort_service = BibleComfortService()
 tts_service = TTSService()
 
 app = FastAPI(title="Comfort API (OpenAI SDK)")

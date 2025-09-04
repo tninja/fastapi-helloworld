@@ -14,7 +14,7 @@ def _init_openai_client() -> Optional[OpenAI]:
         return None
 
 
-class ComfortQuery(BaseModel):
+class BibleComfortQuery(BaseModel):
     language: str = "zh"
     situation: str
     faith_background: Optional[str] = "christian"
@@ -22,15 +22,15 @@ class ComfortQuery(BaseModel):
     guidance: Optional[str] = ""
 
 
-class Passage(BaseModel):
+class BiblePassage(BaseModel):
     ref: str
     short_quote: str
     reason: str
     full_passage_text: str
 
 
-class ComfortResponse(BaseModel):
-    passages: List[Passage]
+class BibleComfortResponse(BaseModel):
+    passages: List[BiblePassage]
     devotional: str
     prayer: str
     disclaimer: str
@@ -70,13 +70,13 @@ Use the requested language for everything.
 """
 
 
-class ComfortService:
+class BibleComfortService:
     """Service responsible for building prompts and calling the OpenAI API."""
 
     def __init__(self, openai_client: Optional[OpenAI] = None) -> None:
         self.client: Optional[OpenAI] = openai_client or _init_openai_client()
 
-    def build_messages(self, q: ComfortQuery) -> List[Dict[str, str]]:
+    def build_messages(self, q: BibleComfortQuery) -> List[Dict[str, str]]:
         lang_unit = "characters" if q.language.startswith("zh") else "words"
         uprompt = USER_PROMPT_TMPL.format(
             language=q.language,
@@ -91,10 +91,10 @@ class ComfortService:
             {"role": "user", "content": uprompt},
         ]
 
-    def get_comfort(self, q: ComfortQuery, *, openai_client: Optional[OpenAI] = None) -> Dict[str, Any]:
+    def get_comfort(self, q: BibleComfortQuery, *, openai_client: Optional[OpenAI] = None) -> Dict[str, Any]:
         """
         Builds the prompt, calls the OpenAI API, and processes the response.
-        Returns a dict that matches ComfortResponse schema.
+        Returns a dict that matches BibleComfortResponse schema.
         """
         messages = self.build_messages(q)
 
@@ -145,3 +145,7 @@ class ComfortService:
         except Exception as e:
             raise RuntimeError(f"LLM API call failed: {e}") from e
 
+# Backward-compatible aliases (to avoid breaking external imports)
+ComfortQuery = BibleComfortQuery
+Passage = BiblePassage
+ComfortResponse = BibleComfortResponse
