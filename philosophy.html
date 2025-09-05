@@ -92,7 +92,8 @@
           playReflection: "播放反思",
           playExercise: "播放练习",
           downloadMp3: "下载 MP3",
-          ttsFailedPrefix: "语音合成失败："
+          ttsFailedPrefix: "语音合成失败：",
+          indexLinkText: "前往经文页面"
         },
         en: {
           title: "The Consolations of Philosophy",
@@ -112,7 +113,8 @@
           playReflection: "Play Reflection",
           playExercise: "Play Exercise",
           downloadMp3: "Download MP3",
-          ttsFailedPrefix: "TTS failed: "
+          ttsFailedPrefix: "TTS failed: ",
+          indexLinkText: "Go to Scriptures Page"
         }
       };
 
@@ -126,7 +128,7 @@
         el('guidanceLabel').textContent = t.guidanceLabel;
         el('guide').placeholder = t.guidancePlaceholder;
         btn.textContent = t.buttonText;
-        el('footer').textContent = t.footer;
+        el('footer').innerHTML = `${t.footer} · <a href=\"index.html\">${t.indexLinkText}</a>`;
         document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : 'en';
       }
 

@@ -98,7 +98,8 @@
           footer: "前端托管在 GitHub Pages · 后端由 FastAPI (Render) 提供。为避免版权与版本差异，页面仅给出经文出处与极短摘句，请以你常用的译本核对上下文。",
           passagesTitle: "推荐经文",
           devotionalTitle: "灵修解读",
-          prayerTitle: "祷告"
+          prayerTitle: "祷告",
+          philosophyLinkText: "前往哲学页面"
         },
         en: {
           title: "Comfort Scriptures: A Ray of Light, A Word of Grace",
@@ -118,7 +119,8 @@
           footer: "Frontend hosted on GitHub Pages · Backend powered by FastAPI (Render). To avoid copyright and version differences, this page only provides scripture references and very short quotes. Please check the context in your preferred translation.",
           passagesTitle: "Recommended Passages",
           devotionalTitle: "Devotional",
-          prayerTitle: "Prayer"
+          prayerTitle: "Prayer",
+          philosophyLinkText: "Go to Philosophy Page"
         }
       };
 
@@ -135,7 +137,7 @@
         el('guidanceLabel').textContent = t.guidanceLabel;
         el('guide').placeholder = t.guidancePlaceholder;
         btn.textContent = t.buttonText;
-        el('footer').textContent = t.footer;
+        el('footer').innerHTML = `${t.footer} · <a href=\"philosophy.html\">${t.philosophyLinkText}</a>`;
         document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : 'en';
       }
 
