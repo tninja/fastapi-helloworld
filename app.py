@@ -5,6 +5,11 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from bible_comfort_service import BibleComfortService, ComfortQuery, ComfortResponse
+from philosophy_comfort_service import (
+    PhilosophyComfortService,
+    PhilosophyComfortQuery,
+    PhilosophyComfortResponse,
+)
 from tts_service import TTSRequest, TTSService
 
 def _init_openai_client() -> Optional[OpenAI]:
@@ -21,6 +26,7 @@ client: Optional[OpenAI] = _init_openai_client()
 
 # Instantiate services
 comfort_service = BibleComfortService()
+philosophy_service = PhilosophyComfortService()
 tts_service = TTSService()
 
 app = FastAPI(title="Comfort API (OpenAI SDK)")
@@ -40,8 +46,8 @@ app.add_middleware(
 
  
 
-@app.post("/comfort", response_model=ComfortResponse)
-def comfort(q: ComfortQuery):
+@app.post("/bible-comfort", response_model=ComfortResponse)
+def bible_comfort(q: ComfortQuery):
     # Basic validation
     if not os.environ.get("OPENAI_API_KEY"):
         raise HTTPException(status_code=500, detail="Server missing OPENAI_API_KEY")
@@ -49,6 +55,22 @@ def comfort(q: ComfortQuery):
     try:
         # Inline the previous wrapper body by delegating directly to the service
         result = comfort_service.get_comfort(q)
+        return result
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        # Catch any other unexpected errors
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+
+
+@app.post("/philosophy-comfort", response_model=PhilosophyComfortResponse)
+def philosophy_comfort(q: PhilosophyComfortQuery):
+    # Basic validation
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="Server missing OPENAI_API_KEY")
+
+    try:
+        result = philosophy_service.get_comfort(q)
         return result
     except (ValueError, RuntimeError) as e:
         raise HTTPException(status_code=502, detail=str(e))
