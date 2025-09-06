@@ -31,6 +31,8 @@
   </style>
 </head>
 <body>
+  <h1 id="header1"></h1>
+  <h2 id="header2"></h2>
   <div class="muted" id="intro"></div>
 
   <div class="card">
@@ -76,6 +78,8 @@
       const translations = {
         zh: {
           title: "哲学的慰藉",
+          header1: "哲学的慰藉",
+          header2: "温柔反思与轻练习",
           intro: "请输入你的处境，我们将提供温柔、体贴的哲学反思与轻柔可行的练习。",
           langLabel: "语言",
           situationLabel: "处境描述",
@@ -97,6 +101,8 @@
         },
         en: {
           title: "The Consolations of Philosophy",
+          header1: "The Consolations of Philosophy",
+          header2: "Gentle Reflections and Practices",
           intro: "Describe your situation; we will provide a warm, gentle philosophical reflection and a soft, easy-to-try exercise.",
           langLabel: "Language",
           situationLabel: "Describe your situation",
@@ -121,6 +127,8 @@
       function updateUI(lang) {
         const t = translations[lang];
         document.title = t.title;
+        el('header1').textContent = t.header1;
+        el('header2').textContent = t.header2;
         el('intro').textContent = t.intro;
         el('langLabel').textContent = t.langLabel;
         el('situationLabel').textContent = t.situationLabel;
