@@ -1,9 +1,7 @@
 import os
-from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI
 from bible_comfort_service import BibleComfortService, ComfortQuery, ComfortResponse
 from philosophy_comfort_service import (
     PhilosophyComfortService,
@@ -11,18 +9,6 @@ from philosophy_comfort_service import (
     PhilosophyComfortResponse,
 )
 from tts_service import TTSRequest, TTSService
-
-def _init_openai_client() -> Optional[OpenAI]:
-    """Initialize OpenAI client if API key is available; otherwise return None.
-    Avoids raising during module import so unit tests can run without network/keys.
-    """
-    try:
-        return OpenAI()
-    except Exception:
-        return None
-
-# Lazily-initialized client; may be None in test environments without API key
-client: Optional[OpenAI] = _init_openai_client()
 
 # Instantiate services
 comfort_service = BibleComfortService()
@@ -44,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
- 
 
 @app.post("/bible-comfort", response_model=ComfortResponse)
 def bible_comfort(q: ComfortQuery):
@@ -90,7 +75,6 @@ def tts(req: TTSRequest):
             language=req.language or "zh",
             voice=req.voice,
             fmt=req.format or "mp3",
-            openai_client=client,
         )
 
         def file_iterator(path: str, chunk_size: int = 8192):
