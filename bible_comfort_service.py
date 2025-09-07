@@ -57,7 +57,7 @@ Content requirements:
 - Propose Bible passages (book chapter:verse) that fit the user's situation.
 - For short_quote: give at most a very brief paraphrase (<= 20 words/chars) or leave empty.
 - Write a pastoral devotional (500–700 zh characters / 500–700 English words) with a professional tone for Christians.
-- Begin the devotional with 1–2 empathetic sentences, then provide Scripture-based reflection / healing.
+- Begin the devotional with 1–2 empathetic sentences, then provide Scripture-based reflection or healing.
 - Write a reverent, concise prayer (4–8 sentences).
 - Avoid heavy emphasis on therapeutic techniques; keep the focus on biblical encouragement and practical wisdom.
 
@@ -79,7 +79,7 @@ Return JSON with fields:
   - short_quote (string, <= 20 words/chars; a minimal paraphrase; MAY be empty)
   - reason (string, 1–2 sentences explaining why this passage fits)
   - full_passage_text (string, VERBATIM full text from a public-domain version. Use WEB for English; use CUV for Chinese. Ensure the verses exactly match the cited reference.)
-- devotional: a 300–500 {lang_unit} pastoral reflection for Christians, professional in tone; begin with 1–2 empathetic sentences, then provide Scripture-based reflection with one concise application or reflection question.
+- devotional: a 300–500 {lang_unit} pastoral reflection for Christians, professional in tone; begin with 1–2 empathetic sentences, then provide Scripture-based reflection / healing.
 - prayer: 4–8 sentences, reverent and concise.
 - disclaimer: one sentence kindly asking the user to verify in their preferred translation.
 
