@@ -56,8 +56,8 @@ Verse accuracy requirements:
 Content requirements:
 - Propose Bible passages (book chapter:verse) that fit the user's situation.
 - For short_quote: give at most a very brief paraphrase (<= 20 words/chars) or leave empty.
-- Write a pastoral devotional (300–500 zh characters / 300–500 English words) with a professional tone for Christians.
-- Begin the devotional with 1–2 empathetic sentences, then provide Scripture-based reflection and one concise practical application or reflection question.
+- Write a pastoral devotional (500–700 zh characters / 500–700 English words) with a professional tone for Christians.
+- Begin the devotional with 1–2 empathetic sentences, then provide Scripture-based reflection / healing.
 - Write a reverent, concise prayer (4–8 sentences).
 - Avoid heavy emphasis on therapeutic techniques; keep the focus on biblical encouragement and practical wisdom.
 
