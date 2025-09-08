@@ -40,7 +40,7 @@ class TTSService:
         # alloy：较自然、稳重，男女声中性，适合祷告、沉静的场景。
         # shimmer：稍微明亮、轻快一些，适合鼓励、安慰式的语境。
         # 如果你想要一种“温柔、安静、带陪伴感”的声音，我建议先试 fable 或 alloy，效果通常比较贴近祷告与灵修氛围。
-        return "fabel" # "alloy"
+        return "fable" # "alloy"
 
     def generate_audio(
             self,
