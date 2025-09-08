@@ -113,8 +113,3 @@ class PhilosophyComfortService:
             raise ValueError(f"LLM returned invalid JSON: {e}") from e
         except Exception as e:
             raise RuntimeError(f"LLM API call failed: {e}") from e
-
-
-# Backward-compatible aliases (symmetry with bible service)
-ComfortQuery = PhilosophyComfortQuery
-ComfortResponse = PhilosophyComfortResponse

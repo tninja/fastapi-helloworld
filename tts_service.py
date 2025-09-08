@@ -52,7 +52,7 @@ class TTSService:
             openai_client: Optional[OpenAI] = None,
     ) -> Tuple[str, str]:
         """
-        Generate TTS audio to a temporary file using OpenAI TTS.
+        Generate TTS audio to a temporary file usuber stocking OpenAI TTS.
 
         Returns a tuple (temp_file_path, media_type).
         The caller is responsible for deleting the temp file after streaming/usage.

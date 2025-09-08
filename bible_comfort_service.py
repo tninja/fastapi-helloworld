@@ -161,8 +161,3 @@ class BibleComfortService:
             raise ValueError(f"LLM returned invalid JSON: {e}") from e
         except Exception as e:
             raise RuntimeError(f"LLM API call failed: {e}") from e
-
-# Backward-compatible aliases (to avoid breaking external imports)
-ComfortQuery = BibleComfortQuery
-Passage = BiblePassage
-ComfortResponse = BibleComfortResponse

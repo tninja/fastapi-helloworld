@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from bible_comfort_service import BibleComfortService, ComfortQuery, ComfortResponse
+from bible_comfort_service import BibleComfortService, BibleComfortQuery, BibleComfortResponse
 from philosophy_comfort_service import (
     PhilosophyComfortService,
     PhilosophyComfortQuery,
@@ -31,8 +31,8 @@ app.add_middleware(
 )
 
 
-@app.post("/bible-comfort", response_model=ComfortResponse)
-def bible_comfort(q: ComfortQuery):
+@app.post("/bible-comfort", response_model=BibleComfortResponse)
+def bible_comfort(q: BibleComfortQuery):
     # Basic validation
     if not os.environ.get("OPENAI_API_KEY"):
         raise HTTPException(status_code=500, detail="Server missing OPENAI_API_KEY")
