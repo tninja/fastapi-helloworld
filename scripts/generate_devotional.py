@@ -21,12 +21,52 @@ USER_WEIGHTS = {
 
 # --- Theme to Scripture Mapping (covers themes from verses.json) ---
 THEME_MAP = {
-    "Morning Seeking and Quietness": ["Psalm 63:1-8", "Psalm 62:1-2,5-8"],
-    "AI/Work Anxiety and Trust": ["Psalm 46", "Psalm 37:3-7", "Matthew 6:25-34", "Philippians 4:6-8"],
-    "Time Management and Wisdom": ["Psalm 90:12", "Proverbs 3:5-6", "James 1:5"],
-    "Gratitude and Hope": ["Psalm 103:1-5", "Isaiah 40:28-31"],
-    "Family Responsibility and Care": ["Psalm 91", "Psalm 121", "Psalm 23"],
-    "Children's Education/Prayer for Children": ["Psalm 121", "Proverbs 3:5-6"]
+    "Morning Seeking and Quietness": [
+        "Psalm 63:1-8",
+        "Psalm 62:1-2,5-8",
+        "Psalm 5:1-3",
+        "Mark 1:35",
+        "Lamentations 3:22-26"
+    ],
+    "AI/Work Anxiety and Trust": [
+        "Psalm 46",
+        "Psalm 37:3-7",
+        "Matthew 6:25-34",
+        "Philippians 4:6-8",
+        "1 Peter 5:6-7",
+        "Proverbs 16:3",
+        "Psalm 55:22"
+    ],
+    "Time Management and Wisdom": [
+        "Psalm 90:12",
+        "Proverbs 3:5-6",
+        "James 1:5",
+        "Ephesians 5:15-17",
+        "Colossians 4:5",
+        "Proverbs 16:9"
+    ],
+    "Gratitude and Hope": [
+        "Psalm 103:1-5",
+        "Isaiah 40:28-31",
+        "1 Thessalonians 5:16-18",
+        "Romans 15:13",
+        "Lamentations 3:21-23"
+    ],
+    "Family Responsibility and Care": [
+        "Psalm 91",
+        "Psalm 121",
+        "Psalm 23",
+        "Joshua 24:15",
+        "1 Timothy 5:8",
+        "Proverbs 22:6"
+    ],
+    "Children's Education/Prayer for Children": [
+        "Psalm 121",
+        "Proverbs 3:5-6",
+        "Deuteronomy 6:6-7",
+        "Isaiah 54:13",
+        "Psalm 127:3-5"
+    ]
 }
 
 def weekday_bias(dt_local):
