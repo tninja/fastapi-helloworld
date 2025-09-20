@@ -16,7 +16,8 @@ USER_WEIGHTS = {
     "AI/Work Anxiety and Trust": 1.3,
     "Gratitude and Hope": 1.1,
     "Children's Education/Prayer for Children": 1.1,
-    "Morning Seeking and Quietness": 1.2
+    "Morning Seeking and Quietness": 1.2,
+    "Emotional Self-Control and Patience": 1.2
 }
 
 # --- Theme to Scripture Mapping (covers themes from verses.json) ---
@@ -66,6 +67,15 @@ THEME_MAP = {
         "Deuteronomy 6:6-7",
         "Isaiah 54:13",
         "Psalm 127:3-5"
+    ],
+    "Emotional Self-Control and Patience": [
+        "Ephesians 4:26-32",
+        "Proverbs 15:1",
+        "Proverbs 16:32",
+        "James 1:19-20",
+        "Colossians 3:12-14",
+        "Galatians 5:22-23",
+        "Proverbs 29:11"
     ]
 }
 
