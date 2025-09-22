@@ -28,18 +28,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Generate devotional
+      - name: Generate good news
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/good_news.py
 
-      - name: Commit devotional
+      - name: Commit good news
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [[ -n "$(git status --porcelain)" ]]; then
             git add .
-            git commit -m "chore: add daily devotional $(date -u +'%Y-%m-%d')"
+            git commit -m "chore: add daily good news $(date -u +'%Y-%m-%d')"
             git push
           else
             echo "No changes to commit."
