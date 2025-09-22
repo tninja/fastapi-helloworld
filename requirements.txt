@@ -5,3 +5,4 @@ pydantic
 openai>=1.0.0
 python-dotenv
 mcp>=0.1.0
+uv>=0.2.0
