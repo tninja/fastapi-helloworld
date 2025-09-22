@@ -10,13 +10,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol, Sequence, Tuple
 
-import mcp.types as types
+try:
+    import mcp.types as types
+    from mcp.client.session import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+except ImportError as exc:
+    raise ImportError(
+        "The 'mcp' package is required. Install it before running this script."
+    ) from exc
+
 import openai
 from dateutil import tz
 from dotenv import load_dotenv
-
-from mcp.client.session import ClientSession
-from mcp.client.stdio import StdioServerParameters, stdio_client
 
 load_dotenv()
 
