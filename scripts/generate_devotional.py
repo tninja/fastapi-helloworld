@@ -17,7 +17,9 @@ USER_WEIGHTS = {
     "Gratitude and Hope": 1.1,
     "Children's Education/Prayer for Children": 1.1,
     "Morning Seeking and Quietness": 1.2,
-    "Emotional Self-Control and Patience": 1.2
+    "Emotional Self-Control and Patience": 1.2,
+    "Seek for Wisdom from God": 1.2,
+    "Seek for God's Blessing": 1.1
 }
 
 # --- Theme to Scripture Mapping (covers themes from verses.json) ---
@@ -76,6 +78,20 @@ THEME_MAP = {
         "Colossians 3:12-14",
         "Galatians 5:22-23",
         "Proverbs 29:11"
+    ],
+    "Seek for Wisdom from God": [
+        "James 1:5",
+        "Proverbs 2:1-6",
+        "Proverbs 3:5-6",
+        "Ephesians 1:17",
+        "Colossians 1:9"
+    ],
+    "Seek for God's Blessing": [
+        "Numbers 6:24-26",
+        "Psalm 67:1-2",
+        "Ephesians 1:3",
+        "Deuteronomy 28:2",
+        "Psalm 115:12-15"
     ]
 }
 
