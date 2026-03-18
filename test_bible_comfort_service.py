@@ -21,6 +21,7 @@ class TestBibleComfortServiceIntegration(unittest.TestCase):
             response_obj = BibleComfortResponse(**result)
         except Exception as e:
             self.fail(f"Service response did not match ComfortResponse: {e}")
+        print(response_obj)
         self.assertGreaterEqual(len(response_obj.passages), 1)
         self.assertTrue(len(response_obj.devotional) > 10)
         self.assertTrue(len(response_obj.prayer) > 10)
