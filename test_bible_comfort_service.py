@@ -99,18 +99,45 @@ class _FakeCompletions:
         )()
 
 
+class _FakeResponses:
+    def __init__(self, output_text: str):
+        self.output_text = output_text
+        self.last_kwargs = None
+
+    def create(self, **kwargs):
+        self.last_kwargs = kwargs
+        return type("Response", (), {"output_text": self.output_text})()
+
+
 class _FakeOpenAIClient:
-    def __init__(self, response_content: str):
+    def __init__(self, response_content: str, research_output_text: str = ""):
         self.completions = _FakeCompletions(response_content)
         self.chat = type(
             "Chat",
             (),
             {"completions": self.completions},
         )()
+        self.responses = _FakeResponses(research_output_text)
 
 
 class TestBibleComfortServiceSearchContext(unittest.TestCase):
-    def test_build_messages_mentions_duckduckgo_news_and_reddit_context(self):
+    def test_build_web_search_prompt_focuses_on_news_reddit_and_public_discussion(self):
+        service = BibleComfortService(openai_client=_FakeOpenAIClient("{}"))
+
+        prompt = service._build_web_search_prompt(
+            BibleComfortQuery(
+                language="zh",
+                situation="最近有很多公司宣称因为AI而layoff员工, 比如meta, block, amazon. 这让人对工作感到不确定和焦虑",
+            )
+        )
+
+        self.assertIn("news", prompt.lower())
+        self.assertIn("reddit", prompt.lower())
+        self.assertIn("public discussion", prompt.lower())
+        self.assertIn("meta", prompt.lower())
+        self.assertIn("amazon", prompt.lower())
+
+    def test_build_messages_mentions_web_search_news_and_reddit_context(self):
         service = BibleComfortService(openai_client=_FakeOpenAIClient("{}"))
 
         messages = service.build_messages(
@@ -118,11 +145,11 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 language="en",
                 situation="I feel overwhelmed by layoffs in the news.",
             ),
-            search_context="Recent layoffs and Reddit discussions about job insecurity.",
+            search_context="Recent web search findings about layoffs and Reddit discussions about job insecurity.",
         )
 
         system_prompt = messages[0]["content"]
-        self.assertIn("DuckDuckGo", system_prompt)
+        self.assertIn("web search", system_prompt)
         self.assertIn("news", system_prompt)
         self.assertIn("Reddit", system_prompt)
         self.assertIn("more accurate and relevant comfort", system_prompt)
@@ -145,11 +172,11 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         self.assertIn("platform names", system_prompt)
         self.assertIn("devotional", system_prompt)
         self.assertIn("prayer", system_prompt)
-        self.assertIn("If the DuckDuckGo context includes company names", user_prompt)
+        self.assertIn("If the web search findings include company names", user_prompt)
         self.assertIn("devotional", user_prompt)
         self.assertIn("prayer", user_prompt)
 
-    def test_get_comfort_includes_duckduckgo_context_in_prompt(self):
+    def test_get_comfort_uses_openai_web_search_and_includes_findings_in_prompt(self):
         search_provider = _FakeSearchProvider(
             "1. Sleep hygiene from trusted Christian counseling resources."
         )
@@ -161,10 +188,19 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(response_payload)
+        fake_client = _FakeOpenAIClient(
+            response_payload,
+            research_output_text=(
+                "News findings:\n"
+                "- Reuters reports that several firms are slowing hiring after AI-led restructuring.\n"
+                "Reddit/public discussion findings:\n"
+                "- Reddit users describe delayed callbacks and longer job searches.\n"
+                "Named entities:\n"
+                "- Reuters\n- Reddit\n- Meta"
+            ),
+        )
         service = BibleComfortService(
             openai_client=fake_client,
-            search_provider=search_provider,
         )
 
         service.get_comfort(
@@ -176,12 +212,24 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         )
 
         prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
-        self.assertIn("DuckDuckGo research context:", prompt)
-        self.assertIn("Sleep hygiene from trusted Christian counseling resources.", prompt)
-        self.assertEqual(len(search_provider.queries), 1)
+        self.assertEqual(fake_client.responses.last_kwargs["tools"], [{"type": "web_search"}])
+        self.assertIn("OpenAI web search findings:", prompt)
+        self.assertIn("Reuters reports that several firms are slowing hiring", prompt)
+        self.assertIn("Reddit users describe delayed callbacks", prompt)
 
-    def test_get_comfort_omits_duckduckgo_section_when_search_returns_nothing(self):
-        search_provider = _FakeSearchProvider("")
+    def test_get_comfort_formats_web_search_findings_for_devotional_and_prayer(self):
+        search_provider = _FakeSearchProvider(
+            "\n".join(
+                [
+                    "1. Meta cuts more teams while increasing AI investment",
+                    "URL: https://example.com/meta",
+                    "Summary: News reports describe AI-driven restructuring and employee uncertainty.",
+                    "2. Reddit users discuss frozen hiring and longer job searches",
+                    "URL: https://reddit.com/example",
+                    "Summary: Public discussion centers on fear, delayed callbacks, and emotional exhaustion.",
+                ]
+            )
+        )
         response_payload = json.dumps(
             {
                 "passages": [],
@@ -190,10 +238,49 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(response_payload)
+        fake_client = _FakeOpenAIClient(
+            response_payload,
+            research_output_text=(
+                "News findings:\n"
+                "- Meta cuts more teams while increasing AI investment. News reports describe AI-driven restructuring and employee uncertainty.\n"
+                "Reddit/public discussion findings:\n"
+                "- Reddit users discuss frozen hiring and longer job searches. Public discussion centers on fear, delayed callbacks, and emotional exhaustion.\n"
+                "Named entities:\n"
+                "- Meta\n- Reddit"
+            ),
+        )
         service = BibleComfortService(
             openai_client=fake_client,
-            search_provider=search_provider,
+        )
+
+        service.get_comfort(
+            BibleComfortQuery(
+                language="en",
+                situation="I feel anxious about layoffs at work.",
+            )
+        )
+
+        prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
+        self.assertIn("OpenAI web search findings:", prompt)
+        self.assertIn("News findings:", prompt)
+        self.assertIn("Reddit/public discussion findings:", prompt)
+        self.assertIn("Named entities:", prompt)
+        self.assertIn("use at least one new external detail", prompt)
+        self.assertIn("AI-driven restructuring", prompt)
+        self.assertIn("longer job searches", prompt)
+
+    def test_get_comfort_omits_web_search_section_when_search_returns_nothing(self):
+        response_payload = json.dumps(
+            {
+                "passages": [],
+                "devotional": "Comfort",
+                "prayer": "Prayer",
+                "disclaimer": "Disclaimer",
+            }
+        )
+        fake_client = _FakeOpenAIClient(response_payload, research_output_text="")
+        service = BibleComfortService(
+            openai_client=fake_client,
         )
 
         service.get_comfort(
@@ -204,7 +291,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         )
 
         prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
-        self.assertNotIn("DuckDuckGo research context:", prompt)
+        self.assertNotIn("OpenAI web search findings:", prompt)
 
 
 if __name__ == '__main__':
