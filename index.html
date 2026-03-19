@@ -23,6 +23,9 @@
     button { cursor:pointer; padding: .7rem 1rem; border-radius: 999px; border: 0; background:#111827; color:#fff; font-weight:600; }
     button[disabled] { opacity:.6; cursor:not-allowed; }
     .row { display:flex; gap:.75rem; align-items:center; }
+    .checkbox-row { display:flex; align-items:center; gap:.5rem; margin-top:.75rem; }
+    .checkbox-row label { display:inline; font-weight:500; margin:0; }
+    .checkbox-row input[type="checkbox"] { width:auto; margin:0; }
     .muted { color:#6b7280; font-size:.9rem; text-shadow: 0 1px 2px rgba(255,255,255,0.7); }
     .passage { padding:.5rem .75rem; border-left:4px solid #11182710; background:#f9fafb; border-radius:8px; margin:.5rem 0; }
     .error { color:#b91c1c; font-weight:600; background-color: rgba(255, 255, 255, 0.85); padding: .5rem; border-radius: 8px; }
@@ -55,6 +58,11 @@
 
     <label for="guide" id="guidanceLabel"></label>
     <input id="guide" />
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="enable_web_search" />
+      <label for="enable_web_search" id="webSearchLabel"></label>
+    </div>
 
     <div class="row" style="margin-top:.75rem">
       <button id="go"></button>
@@ -91,8 +99,10 @@
           situationPlaceholder: "写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…",
           guidanceLabel: "额外引导 (可选)",
           guidancePlaceholder: "例如：请多引用诗篇；请避免旧约经文",
+          webSearchLabel: "启用网页搜索上下文（约40秒）",
           buttonText: "获取安慰",
           statusGenerating: "生成中，请稍候 (约10秒)...",
+          statusGeneratingWithSearch: "生成中，请稍候 (约40秒)...",
           errorSituation: "请先填写处境描述。",
           errorRequestFailed: "请求失败：",
           footer: "前端托管在 GitHub Pages · 后端由 FastAPI (Render) 提供。为避免版权与版本差异，页面仅给出经文出处与极短摘句，请以你常用的译本核对上下文。",
@@ -112,8 +122,10 @@
           situationPlaceholder: "Write down what you are going through, e.g., project delays, fear of layoffs, taking care of children...",
           guidanceLabel: "Optional Guidance",
           guidancePlaceholder: "e.g., please quote more from Psalms; please avoid Old Testament verses",
+          webSearchLabel: "Enable web search context (about 40 seconds)",
           buttonText: "Get Comfort",
           statusGenerating: "Generating... this may take about 10 seconds.",
+          statusGeneratingWithSearch: "Generating... this may take about 40 seconds.",
           errorSituation: "Please describe your situation first.",
           errorRequestFailed: "Request failed: ",
           footer: "Frontend hosted on GitHub Pages · Backend powered by FastAPI (Render). To avoid copyright and version differences, this page only provides scripture references and very short quotes. Please check the context in your preferred translation.",
@@ -136,6 +148,7 @@
         el('sit').placeholder = t.situationPlaceholder;
         el('guidanceLabel').textContent = t.guidanceLabel;
         el('guide').placeholder = t.guidancePlaceholder;
+        el('webSearchLabel').textContent = t.webSearchLabel;
         btn.textContent = t.buttonText;
         el('footer').innerHTML = `${t.footer} · <a href=\"philosophy.html\">${t.philosophyLinkText}</a>`;
         document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : 'en';
@@ -153,7 +166,8 @@
           language: lang,
           situation: el('sit').value.trim(),
           guidance: el('guide').value.trim(),
-          max_passages: parseInt(el('max_passages').value, 10) || 3
+          max_passages: parseInt(el('max_passages').value, 10) || 3,
+          enable_web_search: el('enable_web_search').checked
         };
         if (!body.situation) {
           err.textContent = t.errorSituation;
@@ -161,7 +175,7 @@
         }
 
         btn.disabled = true;
-        status.textContent = t.statusGenerating;
+        status.textContent = body.enable_web_search ? t.statusGeneratingWithSearch : t.statusGenerating;
 
         try {
           const res = await fetch(`${API_BASE}/bible-comfort`, {
