@@ -121,6 +121,65 @@ class _FakeOpenAIClient:
 
 
 class TestBibleComfortServiceSearchContext(unittest.TestCase):
+    def test_get_comfort_skips_web_search_by_default(self):
+        response_payload = json.dumps(
+            {
+                "passages": [],
+                "devotional": "Comfort",
+                "prayer": "Prayer",
+                "disclaimer": "Disclaimer",
+            }
+        )
+        fake_client = _FakeOpenAIClient(
+            response_payload,
+            research_output_text="News findings:\n- This should not be used.",
+        )
+        search_provider = _FakeSearchProvider(
+            "News findings:\n- Provider result that should not be used."
+        )
+        service = BibleComfortService(
+            openai_client=fake_client,
+            search_provider=search_provider,
+        )
+
+        service.get_comfort(
+            BibleComfortQuery(
+                language="en",
+                situation="I feel anxious about work.",
+            )
+        )
+
+        prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
+        self.assertEqual(search_provider.queries, [])
+        self.assertNotIn("OpenAI web search findings:", prompt)
+
+    def test_get_comfort_calls_web_search_when_enabled(self):
+        response_payload = json.dumps(
+            {
+                "passages": [],
+                "devotional": "Comfort",
+                "prayer": "Prayer",
+                "disclaimer": "Disclaimer",
+            }
+        )
+        fake_client = _FakeOpenAIClient(
+            response_payload,
+            research_output_text="News findings:\n- Reuters reports layoffs continue.",
+        )
+        service = BibleComfortService(openai_client=fake_client)
+
+        service.get_comfort(
+            BibleComfortQuery(
+                language="en",
+                situation="I feel anxious about work.",
+                enable_web_search=True,
+            )
+        )
+
+        prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
+        self.assertEqual(fake_client.responses.last_kwargs["tools"], [{"type": "web_search"}])
+        self.assertIn("OpenAI web search findings:", prompt)
+
     def test_build_web_search_prompt_focuses_on_news_reddit_and_public_discussion(self):
         service = BibleComfortService(openai_client=_FakeOpenAIClient("{}"))
 
@@ -128,6 +187,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
             BibleComfortQuery(
                 language="zh",
                 situation="最近有很多公司宣称因为AI而layoff员工, 比如meta, block, amazon. 这让人对工作感到不确定和焦虑",
+                enable_web_search=True,
             )
         )
 
@@ -208,6 +268,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 language="en",
                 situation="I feel anxious at night and cannot sleep.",
                 guidance="Focus on biblical comfort for insomnia.",
+                enable_web_search=True,
             )
         )
 
@@ -257,6 +318,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
             BibleComfortQuery(
                 language="en",
                 situation="I feel anxious about layoffs at work.",
+                enable_web_search=True,
             )
         )
 

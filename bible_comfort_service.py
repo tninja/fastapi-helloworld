@@ -34,6 +34,7 @@ class BibleComfortQuery(BaseModel):
     faith_background: Optional[str] = "christian"
     max_passages: int = 3
     guidance: Optional[str] = ""
+    enable_web_search: bool = False
 
 
 class BiblePassage(BaseModel):
@@ -263,6 +264,7 @@ class BibleComfortService:
             max_passages=max(1, min(q.max_passages, 10)),
             lang_unit=lang_unit,
         )
+        ## DONE: I want to have a checkbox in the UI to enable web search context. If not checked (by default), we should not call the search provider at all and can skip appending search context to the prompt. If enabled, the default waiting time is around 40 sec
         uprompt = self._append_search_context(uprompt, search_context)
         return [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -414,7 +416,12 @@ class BibleComfortService:
             return ["- None"]
         return [f"- {item}" for item in items[:3]]
 
+    def _should_use_web_search(self, q: BibleComfortQuery) -> bool:
+        return q.enable_web_search
+
     def _get_search_context(self, q: BibleComfortQuery, oc: OpenAI) -> str:
+        if not self._should_use_web_search(q):
+            return ""
         if self.search_provider is not None:
             return self.search_provider.search(q)
         return self._search_with_openai_web(oc, q)
