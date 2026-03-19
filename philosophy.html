@@ -23,6 +23,9 @@
     button { cursor:pointer; padding: .7rem 1rem; border-radius: 999px; border: 0; background:#111827; color:#fff; font-weight:600; }
     button[disabled] { opacity:.6; cursor:not-allowed; }
     .row { display:flex; gap:.75rem; align-items:center; }
+    .checkbox-row { display:flex; align-items:center; gap:.5rem; margin-top:.75rem; }
+    .checkbox-row label { display:inline; font-weight:500; margin:0; }
+    .checkbox-row input[type="checkbox"] { width:auto; margin:0; }
     .muted { color:#6b7280; font-size:.9rem; text-shadow: 0 1px 2px rgba(255,255,255,0.7); }
     .passage { padding:.5rem .75rem; border-left:4px solid #11182710; background:#f9fafb; border-radius:8px; margin:.5rem 0; }
     .error { color:#b91c1c; font-weight:600; background-color: rgba(255, 255, 255, 0.85); padding: .5rem; border-radius: 8px; }
@@ -51,6 +54,11 @@
 
     <label for="guide" id="guidanceLabel"></label>
     <input id="guide" />
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="enable_web_search" />
+      <label for="enable_web_search" id="webSearchLabel"></label>
+    </div>
 
     <div class="row" style="margin-top:.75rem">
       <button id="go"></button>
@@ -86,8 +94,10 @@
           situationPlaceholder: "写下你正在经历的事，例如：项目延期、担心裁员、照顾孩子压力……",
           guidanceLabel: "额外引导（可选）",
           guidancePlaceholder: "例如：关注幸福哲学, 语气更温柔、更少说教；先共情再建议；给 2-5 分钟的小练习",
+          webSearchLabel: "启用网页搜索上下文",
           buttonText: "获取慰藉",
           statusGenerating: "生成中，请稍候（约 10 秒）...",
+          statusGeneratingWithSearch: "生成中，请稍候（约 40 秒）...",
           errorSituation: "请先填写处境描述。",
           errorRequestFailed: "请求失败：",
           footer: "前端托管在 GitHub Pages，后端由 FastAPI（Render）提供。",
@@ -109,8 +119,10 @@
           situationPlaceholder: "Write what you are going through, e.g., project delays, fear of layoffs, caregiving stress...",
           guidanceLabel: "Additional guidance (optional)",
           guidancePlaceholder: "e.g., focus on well being philosophy, softer tone, less didactic; start with empathy; 2–5 minute practice",
+          webSearchLabel: "Enable web search context",
           buttonText: "Get Consolation",
           statusGenerating: "Generating, please wait (~10s)...",
+          statusGeneratingWithSearch: "Generating, please wait (~40s)...",
           errorSituation: "Please enter your situation first.",
           errorRequestFailed: "Request failed: ",
           footer: "Frontend on GitHub Pages - Backend by FastAPI (Render).",
@@ -135,6 +147,7 @@
         el('sit').placeholder = t.situationPlaceholder;
         el('guidanceLabel').textContent = t.guidanceLabel;
         el('guide').placeholder = t.guidancePlaceholder;
+        el('webSearchLabel').textContent = t.webSearchLabel;
         btn.textContent = t.buttonText;
         el('footer').innerHTML = `${t.footer} · <a href=\"index.html\">${t.indexLinkText}</a>`;
         document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : 'en';
@@ -151,7 +164,8 @@
         const body = {
           language: lang,
           situation: el('sit').value.trim(),
-          guidance: el('guide').value.trim()
+          guidance: el('guide').value.trim(),
+          enable_web_search: el('enable_web_search').checked
         };
         if (!body.situation) {
           err.textContent = t.errorSituation;
@@ -159,7 +173,7 @@
         }
 
         btn.disabled = true;
-        status.textContent = t.statusGenerating;
+        status.textContent = body.enable_web_search ? t.statusGeneratingWithSearch : t.statusGenerating;
 
         try {
           const res = await fetch(`${API_BASE}/philosophy-comfort`, {

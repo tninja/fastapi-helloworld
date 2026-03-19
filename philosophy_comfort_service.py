@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from openai import OpenAI
@@ -19,6 +20,7 @@ class PhilosophyComfortQuery(BaseModel):
     situation: str
     philosophy_background: Optional[str] = "philosophy"
     guidance: Optional[str] = ""
+    enable_web_search: bool = False
 
 
 class PhilosophyComfortResponse(BaseModel):
@@ -39,6 +41,11 @@ For copyrighted works (including modern books): prefer concise paraphrases rathe
 Write a practical, compassionate, and healing-toned philosophical reflection. Begin with 1–2 sentences of empathy and normalization. Maintain a soft, soothing voice; include at least one gentle reframe and one brief grounding cue (e.g., "notice your feet on the floor").
 Provide a short step-by-step philosophical exercise (4-8 sentences) written as a gentle invitation, not a command. Make it easy to try (2–5 minutes), with optional steps (e.g., a few slow breaths, a soft reframing, a small action, a sensory check-in like placing a hand on the chest). Close with one reassuring sentence.
 Avoid sectarian or religious framing; focus on agency, clarity, and emotional steadiness.
+- When web search findings are provided, use them to gather relevant current context such as news, Reddit posts, public discussions, and situational background.
+- Use those web search findings to provide more accurate and relevant comfort in the reflection and exercise.
+- In the reflection, explicitly mention at least one concrete external detail from web search findings when available.
+- In the exercise, explicitly mention at least one concrete external detail from web search findings when available.
+- If web search findings include company names, platform names, source types, or public discussion themes, prefer to mention those exact details rather than generic wording.
 Return STRICT JSON only, matching exactly the schema the user supplies.
 If unsure about exact sections, choose ones you are confident in and clearly name the work and section (e.g., "Meditations 2.1", "Nicomachean Ethics II").
 """
@@ -54,6 +61,9 @@ Return JSON with fields:
 - exercise: 4-8 sentences describing a gentle, invitation-style practice (e.g., a few breaths, a soft reframing, journaling prompts, view-from-above) that can be done in 2–5 minutes; mark steps as optional where helpful; include a brief sensory step (e.g., hand on chest) and end with one sentence of reassurance.
 - disclaimer: one concise sentence reminding the user that summaries may differ by edition/translation and encouraging verification.
 
+If web search findings are included below, use them to understand the user's current reality more precisely, including relevant news, Reddit posts, and public discussion themes. Use them to improve relevance, but do not invent facts.
+If the web search findings include company names, platform names, source types, or public discussion themes, explicitly mention at least one or two of those details in the reflection and at least one in the exercise when natural to do so.
+
 Use the requested language for everything.
 """
 
@@ -64,7 +74,11 @@ class PhilosophyComfortService:
     def __init__(self, openai_client: Optional[OpenAI] = None) -> None:
         self.client: Optional[OpenAI] = openai_client or _init_openai_client()
 
-    def build_messages(self, q: PhilosophyComfortQuery) -> List[Dict[str, str]]:
+    def build_messages(
+        self,
+        q: PhilosophyComfortQuery,
+        search_context: str = "",
+    ) -> List[Dict[str, str]]:
         lang_unit = "characters" if q.language.startswith("zh") else "words"
         uprompt = USER_PROMPT_TMPL.format(
             language=q.language,
@@ -73,19 +87,72 @@ class PhilosophyComfortService:
             guidance=q.guidance or "None",
             lang_unit=lang_unit,
         )
+        uprompt = self._append_search_context(uprompt, search_context)
         return [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": uprompt},
         ]
 
+    def _append_search_context(self, prompt: str, search_context: str) -> str:
+        if not search_context.strip():
+            return prompt
+
+        return (
+            f"{prompt}\n"
+            "OpenAI web search findings:\n"
+            f"{search_context.strip()}\n\n"
+            "When web search findings contain concrete details beyond the user's own wording, "
+            "use at least one new external detail in the reflection and at least one in the exercise when relevant.\n"
+            "Use these findings only as supporting background. "
+            "Prioritize relevant philosophical reflection, practical comfort, and grounded exercise steps."
+        )
+
+    def _build_web_search_prompt(self, q: PhilosophyComfortQuery) -> str:
+        return (
+            "Search the web for recent and concrete context related to the user's situation. "
+            "Focus on news, Reddit posts, and public discussion. "
+            "Prefer details beyond the user's own wording, including named companies, source types, and specific concerns people are discussing.\n\n"
+            f"User language: {q.language}\n"
+            f"Philosophical background: {q.philosophy_background or 'philosophy'}\n"
+            f"Situation detail: {q.situation}\n"
+            f"Additional guidance: {q.guidance or 'None'}\n\n"
+            "Return concise plain text with exactly these sections:\n"
+            "News findings:\n"
+            "- ...\n"
+            "Reddit/public discussion findings:\n"
+            "- ...\n"
+            "Named entities:\n"
+            "- ...\n"
+        )
+
+    def _search_with_openai_web(self, oc: OpenAI, q: PhilosophyComfortQuery) -> str:
+        responses_api = getattr(oc, "responses", None)
+        if responses_api is None:
+            return ""
+
+        result = responses_api.create(
+            model=os.getenv("PHILOSOPHY_COMFORT_SEARCH_MODEL", "gpt-5"),
+            tools=[{"type": "web_search"}],
+            input=self._build_web_search_prompt(q),
+        )
+        return (getattr(result, "output_text", "") or "").strip()
+
+    def _should_use_web_search(self, q: PhilosophyComfortQuery) -> bool:
+        return q.enable_web_search
+
+    def _get_search_context(self, q: PhilosophyComfortQuery, oc: OpenAI) -> str:
+        if not self._should_use_web_search(q):
+            return ""
+        return self._search_with_openai_web(oc, q)
+
     def get_comfort(self, q: PhilosophyComfortQuery, *, openai_client: Optional[OpenAI] = None) -> Dict[str, Any]:
         """Build prompts, call the OpenAI API, and return a dict matching PhilosophyComfortResponse."""
-        messages = self.build_messages(q)
-
         try:
             oc = openai_client or self.client
             if oc is None:
                 raise RuntimeError("OpenAI client not configured")
+
+            messages = self.build_messages(q, search_context=self._get_search_context(q, oc))
 
             resp = oc.chat.completions.create(
                 model="gpt-5-mini",
