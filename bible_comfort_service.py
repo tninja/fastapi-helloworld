@@ -1,21 +1,9 @@
-import asyncio
 import json
 import os
-import re
-import shlex
-from typing import List, Optional, Dict, Any, Protocol
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from openai import OpenAI
-
-try:
-    import mcp.types as mcp_types
-    from mcp.client.session import ClientSession
-    from mcp.client.stdio import StdioServerParameters, stdio_client
-except ImportError:
-    mcp_types = None
-    ClientSession = None
-    StdioServerParameters = None
-    stdio_client = None
+from comfort_search import DuckDuckGoSearchProvider, SearchFindingsFormatter, SearchProvider
 
 
 def _init_openai_client() -> Optional[OpenAI]:
@@ -49,83 +37,6 @@ class BibleComfortResponse(BaseModel):
     devotional: str
     prayer: str
     disclaimer: str
-
-
-class SearchProvider(Protocol):
-    def search(self, query: "BibleComfortQuery") -> str:
-        ...
-
-
-class DuckDuckGoSearchProvider:
-    def __init__(
-        self,
-        server_cmd: str,
-        server_args: tuple[str, ...],
-        server_dir: str | None,
-        max_results: int,
-    ) -> None:
-        self.server_cmd = server_cmd
-        self.server_args = server_args
-        self.server_dir = server_dir
-        self.max_results = max_results
-
-    @classmethod
-    def from_env(cls) -> "DuckDuckGoSearchProvider":
-        server_dir = os.getenv("DDG_MCP_DIR")
-        return cls(
-            server_cmd=os.getenv("DDG_MCP_CMD", "uvx"),
-            server_args=tuple(
-                _resolve_server_args(os.getenv("DDG_MCP_ARGS", "duckduckgo-mcp-server"))
-            ),
-            server_dir=server_dir,
-            max_results=int(os.getenv("DDG_MCP_MAX_RESULTS", "10")),
-        )
-
-    def search(self, query: "BibleComfortQuery") -> str:
-        return asyncio.run(self._search_async(query))
-
-    def _build_query_text(self, query: "BibleComfortQuery") -> str:
-        return query.situation.strip()
-
-    def _require_mcp_dependencies(self) -> None:
-        if any(
-            dependency is None
-            for dependency in (mcp_types, ClientSession, StdioServerParameters, stdio_client)
-        ):
-            raise RuntimeError("DuckDuckGo MCP dependencies are not available.")
-
-    def _extract_text_parts(self, result: Any) -> list[str]:
-        return [
-            item.text.strip()
-            for item in result.content
-            if isinstance(item, mcp_types.TextContent) and item.text.strip()
-        ]
-
-    async def _search_async(self, query: "BibleComfortQuery") -> str:
-        self._require_mcp_dependencies()
-
-        server_params = StdioServerParameters(
-            command=self.server_cmd,
-            args=list(self.server_args),
-            cwd=self.server_dir,
-        )
-
-        async with stdio_client(server_params) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                result = await session.call_tool(
-                    "search",
-                    {
-                        "query": self._build_query_text(query),
-                        "max_results": self.max_results,
-                    },
-                )
-
-                if result.isError:
-                    message = "\n".join(self._extract_text_parts(result)) or "Unknown MCP error"
-                    raise RuntimeError(f"MCP server reported an error: {message}")
-
-                return "\n".join(self._extract_text_parts(result))
 
 
 SYSTEM_PROMPT = """You are a Christian pastoral counselor and Bible study assistant serving a Christian audience.
@@ -186,12 +97,6 @@ If the web search findings include company names, platform names, source types, 
 
 Use the requested language for everything.
 """
-
-
-def _resolve_server_args(template: str) -> List[str]:
-    return shlex.split(template)
-
-
 class BibleComfortService:
     """Service responsible for building prompts and calling the OpenAI API."""
 
@@ -202,6 +107,7 @@ class BibleComfortService:
     ) -> None:
         self.client: Optional[OpenAI] = openai_client or _init_openai_client()
         self.search_provider = search_provider or DuckDuckGoSearchProvider.from_env()
+        self._search_findings_formatter = SearchFindingsFormatter()
 
     def build_messages(
         self,
@@ -269,105 +175,7 @@ class BibleComfortService:
         return (getattr(result, "output_text", "") or "").strip()
 
     def _format_search_findings(self, search_context: str) -> str:
-        entries = self._parse_search_entries(search_context)
-        if not entries:
-            return "News findings:\n- None\nReddit/public discussion findings:\n- None\nNamed entities:\n- None"
-
-        news_findings: List[str] = []
-        discussion_findings: List[str] = []
-        named_entities: List[str] = []
-
-        for entry in entries:
-            title = entry["title"]
-            summary = entry["summary"]
-            url = entry["url"]
-            finding = self._compose_finding(title, summary)
-            if self._is_discussion_entry(title, summary, url):
-                discussion_findings.append(finding)
-            else:
-                news_findings.append(finding)
-            named_entities.extend(self._extract_named_entities(f"{title} {summary} {url}"))
-
-        named_entities = self._dedupe_keep_order(named_entities)[:8]
-        return "\n".join(
-            [
-                "News findings:",
-                *self._format_section(news_findings),
-                "Reddit/public discussion findings:",
-                *self._format_section(discussion_findings),
-                "Named entities:",
-                *self._format_section(named_entities),
-            ]
-        )
-
-    def _parse_search_entries(self, search_context: str) -> List[Dict[str, str]]:
-        entries: List[Dict[str, str]] = []
-        current: Optional[Dict[str, str]] = None
-
-        for raw_line in search_context.splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
-
-            if re.match(r"^\d+\.\s+", line):
-                if current:
-                    entries.append(current)
-                current = {"title": re.sub(r"^\d+\.\s+", "", line), "summary": "", "url": ""}
-                continue
-
-            if current is None:
-                current = {"title": line, "summary": "", "url": ""}
-                continue
-
-            if line.startswith("URL:"):
-                current["url"] = line[len("URL:") :].strip()
-            elif line.startswith("Summary:"):
-                current["summary"] = line[len("Summary:") :].strip()
-            elif current["summary"]:
-                current["summary"] = f"{current['summary']} {line}".strip()
-            else:
-                current["summary"] = line
-
-        if current:
-            entries.append(current)
-
-        return entries[:5]
-
-    def _compose_finding(self, title: str, summary: str) -> str:
-        if title and summary:
-            return f"{title}. {summary}"
-        return title or summary or "None"
-
-    def _is_discussion_entry(self, title: str, summary: str, url: str) -> bool:
-        haystack = f"{title} {summary} {url}".lower()
-        discussion_markers = [
-            "reddit",
-            "forum",
-            "discussion",
-            "commentary",
-            "comments",
-            "users discuss",
-        ]
-        return any(marker in haystack for marker in discussion_markers)
-
-    def _extract_named_entities(self, text: str) -> List[str]:
-        matches = re.findall(r"\b[A-Z][A-Za-z0-9&.-]{1,}\b", text)
-        return [match for match in matches if match.lower() not in {"url", "summary", "news", "public"}]
-
-    def _dedupe_keep_order(self, items: List[str]) -> List[str]:
-        seen = set()
-        deduped: List[str] = []
-        for item in items:
-            if item in seen:
-                continue
-            seen.add(item)
-            deduped.append(item)
-        return deduped
-
-    def _format_section(self, items: List[str]) -> List[str]:
-        if not items:
-            return ["- None"]
-        return [f"- {item}" for item in items[:3]]
+        return self._search_findings_formatter.format(search_context)
 
     def _should_use_web_search(self, q: BibleComfortQuery) -> bool:
         return q.enable_web_search

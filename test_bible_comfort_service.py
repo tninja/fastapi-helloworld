@@ -7,7 +7,11 @@ from bible_comfort_service import (
     BibleComfortService,
     BibleComfortQuery,
     BibleComfortResponse,
-    DuckDuckGoSearchProvider,
+)
+from test_comfort_support import (
+    FakeDuckDuckGoSearchProvider,
+    FakeOpenAIClient,
+    FakeSearchProvider,
 )
 
 
@@ -67,124 +71,6 @@ class TestBibleComfortServiceIntegration(unittest.TestCase):
         self.assertTrue(len(response_obj.prayer.split()) > 5)
 
 
-class _FakeSearchProvider:
-    def __init__(self, context: str):
-        self.context = context
-        self.queries = []
-
-    def search(self, query: BibleComfortQuery) -> str:
-        self.queries.append(query)
-        return self.context
-
-
-class _FakeCompletions:
-    def __init__(self, response_content: str):
-        self.response_content = response_content
-        self.last_kwargs = None
-
-    def create(self, **kwargs):
-        self.last_kwargs = kwargs
-        return type(
-            "Response",
-            (),
-            {
-                "choices": [
-                    type(
-                        "Choice",
-                        (),
-                        {
-                            "message": type(
-                                "Message", (), {"content": self.response_content}
-                            )()
-                        },
-                    )()
-                ]
-            },
-        )()
-
-
-class _FakeResponses:
-    def __init__(self, output_text: str):
-        self.output_text = output_text
-        self.last_kwargs = None
-
-    def create(self, **kwargs):
-        self.last_kwargs = kwargs
-        return type("Response", (), {"output_text": self.output_text})()
-
-
-class _FakeOpenAIClient:
-    def __init__(self, response_content: str, research_output_text: str = ""):
-        self.completions = _FakeCompletions(response_content)
-        self.chat = type(
-            "Chat",
-            (),
-            {"completions": self.completions},
-        )()
-        self.responses = _FakeResponses(research_output_text)
-
-
-class _FakeTextContent:
-    def __init__(self, text: str):
-        self.text = text
-
-
-class _FakeStdioServerParameters:
-    def __init__(self, command, args, cwd=None):
-        self.command = command
-        self.args = args
-        self.cwd = cwd
-
-
-class _FakeAsyncContextManager:
-    def __init__(self, value):
-        self.value = value
-
-    async def __aenter__(self):
-        return self.value
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-
-class _FakeClientSession:
-    result_content = []
-    last_call = None
-
-    def __init__(self, read_stream, write_stream):
-        self.read_stream = read_stream
-        self.write_stream = write_stream
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def initialize(self):
-        return None
-
-    async def call_tool(self, name, arguments):
-        type(self).last_call = {"name": name, "arguments": arguments}
-        return type(
-            "Result",
-            (),
-            {"isError": False, "content": type(self).result_content},
-        )()
-
-
-def _fake_stdio_client(server_params):
-    _fake_stdio_client.last_server_params = server_params
-    return _FakeAsyncContextManager(("read-stream", "write-stream"))
-
-
-_fake_stdio_client.last_server_params = None
-
-
-class _FakeMCPTypes:
-    TextContent = _FakeTextContent
-
-
 class TestBibleComfortServiceSearchContext(unittest.TestCase):
     def test_get_comfort_skips_web_search_by_default(self):
         response_payload = json.dumps(
@@ -195,11 +81,11 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(
+        fake_client = FakeOpenAIClient(
             response_payload,
             research_output_text="News findings:\n- This should not be used.",
         )
-        search_provider = _FakeSearchProvider(
+        search_provider = FakeSearchProvider(
             "News findings:\n- Provider result that should not be used."
         )
         service = BibleComfortService(
@@ -227,42 +113,28 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(
+        fake_client = FakeOpenAIClient(
             response_payload,
             research_output_text="News findings:\n- Reuters reports layoffs continue.",
         )
-        _FakeClientSession.result_content = [
-            _FakeTextContent(
-                "\n".join(
-                    [
-                        "1. Meta cuts more teams while increasing AI investment",
-                        "URL: https://example.com/meta",
-                        "Summary: News reports describe AI-driven restructuring and employee uncertainty.",
-                        "2. Reddit users discuss frozen hiring and longer job searches",
-                        "URL: https://reddit.com/example",
-                        "Summary: Public discussion centers on fear, delayed callbacks, and emotional exhaustion.",
-                    ]
-                )
+        fake_provider = FakeDuckDuckGoSearchProvider(
+            "\n".join(
+                [
+                    "1. Meta cuts more teams while increasing AI investment",
+                    "URL: https://example.com/meta",
+                    "Summary: News reports describe AI-driven restructuring and employee uncertainty.",
+                    "2. Reddit users discuss frozen hiring and longer job searches",
+                    "URL: https://reddit.com/example",
+                    "Summary: Public discussion centers on fear, delayed callbacks, and emotional exhaustion.",
+                ]
             )
-        ]
+        )
 
         with (
-            patch.object(bible_comfort_service_module, "ClientSession", _FakeClientSession),
-            patch.object(bible_comfort_service_module, "stdio_client", _fake_stdio_client),
             patch.object(
-                bible_comfort_service_module,
-                "StdioServerParameters",
-                _FakeStdioServerParameters,
-            ),
-            patch.object(bible_comfort_service_module, "mcp_types", _FakeMCPTypes),
-            patch.dict(
-                os.environ,
-                {
-                    "DDG_MCP_CMD": "uvx",
-                    "DDG_MCP_ARGS": "duckduckgo-mcp-server",
-                    "DDG_MCP_MAX_RESULTS": "4",
-                },
-                clear=False,
+                bible_comfort_service_module.DuckDuckGoSearchProvider,
+                "from_env",
+                return_value=fake_provider,
             ),
         ):
             service = BibleComfortService(openai_client=fake_client)
@@ -277,16 +149,8 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
 
         prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
         self.assertIsNone(fake_client.responses.last_kwargs)
-        self.assertEqual(_FakeClientSession.last_call["name"], "search")
-        self.assertEqual(
-            _FakeClientSession.last_call["arguments"],
-            {
-                "query": "I feel anxious about layoffs at work.",
-                "max_results": 4,
-            },
-        )
-        self.assertEqual(_fake_stdio_client.last_server_params.command, "uvx")
-        self.assertEqual(_fake_stdio_client.last_server_params.args, ["duckduckgo-mcp-server"])
+        self.assertEqual(len(fake_provider.queries), 1)
+        self.assertEqual(fake_provider.queries[0].situation, "I feel anxious about layoffs at work.")
         self.assertIn("Web search findings:", prompt)
         self.assertIn("News findings:", prompt)
         self.assertIn("Reddit/public discussion findings:", prompt)
@@ -295,7 +159,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         self.assertIn("Reddit users discuss frozen hiring and longer job searches", prompt)
 
     def test_build_web_search_prompt_focuses_on_news_reddit_and_public_discussion(self):
-        service = BibleComfortService(openai_client=_FakeOpenAIClient("{}"))
+        service = BibleComfortService(openai_client=FakeOpenAIClient("{}"))
 
         prompt = service._build_web_search_prompt(
             BibleComfortQuery(
@@ -312,7 +176,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         self.assertIn("amazon", prompt.lower())
 
     def test_build_messages_mentions_web_search_news_and_reddit_context(self):
-        service = BibleComfortService(openai_client=_FakeOpenAIClient("{}"))
+        service = BibleComfortService(openai_client=FakeOpenAIClient("{}"))
 
         messages = service.build_messages(
             BibleComfortQuery(
@@ -329,7 +193,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         self.assertIn("more accurate and relevant comfort", system_prompt)
 
     def test_build_messages_requires_explicit_external_context_in_devotional_and_prayer(self):
-        service = BibleComfortService(openai_client=_FakeOpenAIClient("{}"))
+        service = BibleComfortService(openai_client=FakeOpenAIClient("{}"))
 
         messages = service.build_messages(
             BibleComfortQuery(
@@ -359,7 +223,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(
+        fake_client = FakeOpenAIClient(
             response_payload,
             research_output_text=(
                 "News findings:\n"
@@ -396,7 +260,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(
+        fake_client = FakeOpenAIClient(
             response_payload,
             research_output_text=(
                 "News findings:\n"
@@ -438,7 +302,7 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
                 "disclaimer": "Disclaimer",
             }
         )
-        fake_client = _FakeOpenAIClient(response_payload, research_output_text="")
+        fake_client = FakeOpenAIClient(response_payload, research_output_text="")
         service = BibleComfortService(
             openai_client=fake_client,
         )
@@ -452,53 +316,6 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
 
         prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
         self.assertNotIn("Web search findings:", prompt)
-
-
-class TestDuckDuckGoSearchProvider(unittest.TestCase):
-    def test_search_returns_raw_search_results_from_mcp(self):
-        _FakeClientSession.result_content = [
-            _FakeTextContent(
-                "\n".join(
-                    [
-                        "1. Reuters reports layoffs continue",
-                        "URL: https://example.com/reuters",
-                        "Summary: Hiring slows across multiple firms.",
-                    ]
-                )
-            )
-        ]
-        provider = DuckDuckGoSearchProvider(
-            server_cmd="uvx",
-            server_args=("duckduckgo-mcp-server",),
-            server_dir=None,
-            max_results=2,
-        )
-
-        with (
-            patch.object(bible_comfort_service_module, "ClientSession", _FakeClientSession),
-            patch.object(bible_comfort_service_module, "stdio_client", _fake_stdio_client),
-            patch.object(
-                bible_comfort_service_module,
-                "StdioServerParameters",
-                _FakeStdioServerParameters,
-            ),
-            patch.object(bible_comfort_service_module, "mcp_types", _FakeMCPTypes),
-        ):
-            result = provider.search(
-                BibleComfortQuery(
-                    language="en",
-                    situation="I feel anxious about work.",
-                    enable_web_search=True,
-                )
-            )
-
-        self.assertEqual(_FakeClientSession.last_call["name"], "search")
-        self.assertEqual(
-            _FakeClientSession.last_call["arguments"],
-            {"query": "I feel anxious about work.", "max_results": 2},
-        )
-        self.assertIn("Reuters reports layoffs continue", result)
-        self.assertIn("Summary: Hiring slows across multiple firms.", result)
 
 
 if __name__ == '__main__':
