@@ -57,7 +57,8 @@
     <textarea id="sit" rows="5"></textarea>
 
     <label for="guide" id="guidanceLabel"></label>
-    <input id="guide" />
+    <input id="guide" list="guideOptions" />
+    <datalist id="guideOptions"></datalist>
 
     <div class="checkbox-row">
       <input type="checkbox" id="enable_web_search" />
@@ -98,7 +99,13 @@
           situationLabel: "处境描述",
           situationPlaceholder: "写下你正在经历的事，比如：项目延期、担心裁员、需要照顾孩子…",
           guidanceLabel: "额外引导 (可选)",
-          guidancePlaceholder: "例如：请多引用诗篇；请避免旧约经文",
+          guidancePlaceholder: "可选择常用引导，或直接输入你自己的要求",
+          guidanceOptions: [
+            { value: "", label: "请选择常用引导（可留空）" },
+            { value: "请列举一位与当前处境最相似的圣经正面人物，并详细说明他或她有哪些相似经历，以及神如何带领他或她。", label: "最相似的圣经人物与经历" },
+            { value: "请多引用诗篇中关于安慰、盼望与信靠神的经文。", label: "多引用诗篇中的安慰经文" },
+            { value: "请给出可以立刻实行的属灵回应与祷告方向。", label: "加入可立即实行的属灵回应" }
+          ],
           webSearchLabel: "启用网页搜索上下文",
           buttonText: "获取安慰",
           statusGenerating: "生成中，请稍候 (约10秒)...",
@@ -121,7 +128,13 @@
           situationLabel: "Describe your situation",
           situationPlaceholder: "Write down what you are going through, e.g., project delays, fear of layoffs, taking care of children...",
           guidanceLabel: "Optional Guidance",
-          guidancePlaceholder: "e.g., please quote more from Psalms; please avoid Old Testament verses",
+          guidancePlaceholder: "Choose a common guidance or type your own request",
+          guidanceOptions: [
+            { value: "", label: "Select a common guidance (optional)" },
+            { value: "Identify one Bible figure whose hopeful experience most closely matches the situation, and explain in detail how their journey parallels mine and how God guided them.", label: "Closest Bible figure and parallel journey" },
+            { value: "Please include more passages from Psalms about comfort, hope, and trusting God.", label: "Include more comforting Psalms" },
+            { value: "Please add practical spiritual responses and prayer directions I can follow right away.", label: "Add practical spiritual next steps" }
+          ],
           webSearchLabel: "Enable web search context",
           buttonText: "Get Comfort",
           statusGenerating: "Generating... this may take about 10 seconds.",
@@ -136,6 +149,26 @@
         }
       };
 
+      function updateGuidanceOptions(lang) {
+        const t = translations[lang];
+        const guide = el('guide');
+        const guideOptions = el('guideOptions');
+        const currentValue = guide.value;
+
+        guide.placeholder = t.guidancePlaceholder;
+        guideOptions.innerHTML = '';
+        t.guidanceOptions
+          .filter((option) => option.value)
+          .forEach((option) => {
+          const node = document.createElement('option');
+          node.value = option.value;
+          node.label = option.label;
+          guideOptions.appendChild(node);
+          });
+
+        guide.value = currentValue;
+      }
+
       function updateUI(lang) {
         const t = translations[lang];
         document.title = t.title;
@@ -147,7 +180,7 @@
         el('situationLabel').textContent = t.situationLabel;
         el('sit').placeholder = t.situationPlaceholder;
         el('guidanceLabel').textContent = t.guidanceLabel;
-        el('guide').placeholder = t.guidancePlaceholder;
+        updateGuidanceOptions(lang);
         el('webSearchLabel').textContent = t.webSearchLabel;
         btn.textContent = t.buttonText;
         el('footer').innerHTML = `${t.footer} · <a href=\"philosophy.html\">${t.philosophyLinkText}</a>`;

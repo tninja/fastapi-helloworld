@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from openai import OpenAI
 from comfort_search import DuckDuckGoSearchProvider, SearchFindingsFormatter, SearchProvider
 
+# DONE: Update "Optional Guidance" from input box to combo box, add couple of common used candidates option for this particular bible comfort use cases. Put this to the top: 列举一个最类似处境的圣经正面人物 详细说明他们的类似经历
+
 
 def _init_openai_client() -> Optional[OpenAI]:
     """Initialize OpenAI client if API key is available; otherwise return None.
