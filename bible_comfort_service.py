@@ -56,6 +56,78 @@ class SearchProvider(Protocol):
         ...
 
 
+class DuckDuckGoSearchProvider:
+    def __init__(
+        self,
+        server_cmd: str,
+        server_args: tuple[str, ...],
+        server_dir: str | None,
+        max_results: int,
+    ) -> None:
+        self.server_cmd = server_cmd
+        self.server_args = server_args
+        self.server_dir = server_dir
+        self.max_results = max_results
+
+    @classmethod
+    def from_env(cls) -> "DuckDuckGoSearchProvider":
+        server_dir = os.getenv("DDG_MCP_DIR")
+        return cls(
+            server_cmd=os.getenv("DDG_MCP_CMD", "uvx"),
+            server_args=tuple(
+                _resolve_server_args(os.getenv("DDG_MCP_ARGS", "duckduckgo-mcp-server"))
+            ),
+            server_dir=server_dir,
+            max_results=int(os.getenv("DDG_MCP_MAX_RESULTS", "10")),
+        )
+
+    def search(self, query: "BibleComfortQuery") -> str:
+        return asyncio.run(self._search_async(query))
+
+    def _build_query_text(self, query: "BibleComfortQuery") -> str:
+        return query.situation.strip()
+
+    def _require_mcp_dependencies(self) -> None:
+        if any(
+            dependency is None
+            for dependency in (mcp_types, ClientSession, StdioServerParameters, stdio_client)
+        ):
+            raise RuntimeError("DuckDuckGo MCP dependencies are not available.")
+
+    def _extract_text_parts(self, result: Any) -> list[str]:
+        return [
+            item.text.strip()
+            for item in result.content
+            if isinstance(item, mcp_types.TextContent) and item.text.strip()
+        ]
+
+    async def _search_async(self, query: "BibleComfortQuery") -> str:
+        self._require_mcp_dependencies()
+
+        server_params = StdioServerParameters(
+            command=self.server_cmd,
+            args=list(self.server_args),
+            cwd=self.server_dir,
+        )
+
+        async with stdio_client(server_params) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                result = await session.call_tool(
+                    "search",
+                    {
+                        "query": self._build_query_text(query),
+                        "max_results": self.max_results,
+                    },
+                )
+
+                if result.isError:
+                    message = "\n".join(self._extract_text_parts(result)) or "Unknown MCP error"
+                    raise RuntimeError(f"MCP server reported an error: {message}")
+
+                return "\n".join(self._extract_text_parts(result))
+
+
 SYSTEM_PROMPT = """You are a Christian pastoral counselor and Bible study assistant serving a Christian audience.
 You MUST respond STRICTLY in the user's requested language (zh for Chinese, en for English).
 DO NOT mix languages. All output, including Bible references, must be in the selected language.
@@ -129,7 +201,7 @@ class BibleComfortService:
         search_provider: Optional[SearchProvider] = None,
     ) -> None:
         self.client: Optional[OpenAI] = openai_client or _init_openai_client()
-        self.search_provider = search_provider
+        self.search_provider = search_provider or DuckDuckGoSearchProvider.from_env()
 
     def build_messages(
         self,
@@ -158,7 +230,7 @@ class BibleComfortService:
 
         return (
             f"{prompt}\n"
-            "OpenAI web search findings:\n"
+            "Web search findings:\n"
             f"{search_context.strip()}\n\n"
             "When web search findings contain concrete details beyond the user's own wording, "
             "use at least one new external detail in the devotional and at least one in the prayer when relevant.\n"
@@ -304,7 +376,10 @@ class BibleComfortService:
         if not self._should_use_web_search(q):
             return ""
         if self.search_provider is not None:
-            return self.search_provider.search(q)
+            search_context = self.search_provider.search(q)
+            if isinstance(self.search_provider, DuckDuckGoSearchProvider):
+                return self._format_search_findings(search_context)
+            return search_context
         return self._search_with_openai_web(oc, q)
 
     def get_comfort(self, q: BibleComfortQuery, *, openai_client: Optional[OpenAI] = None) -> Dict[str, Any]:

@@ -107,6 +107,43 @@ class BuildReportTest(unittest.TestCase):
         self.assertIn("_Generated on:", report)
 
 
+class GoodNewsFetcherParseDDGResultsTest(unittest.TestCase):
+    def _config(self) -> GoodNewsConfig:
+        base = load_config()
+        return replace(base, output_dir=Path("/tmp"))
+
+    def test_parse_ddg_results_extracts_title_url_and_summary(self) -> None:
+        fetcher = GoodNewsFetcher(self._config())
+        search_report = "\n".join(
+            [
+                "1. Good News Network reports a major kindness story",
+                "URL: https://example.com/story",
+                "Summary: Volunteers helped hundreds of families after a storm.",
+                "2. BBC highlights an uplifting community rescue",
+                "URL: https://example.com/bbc",
+                "Summary: Neighbors organized overnight support for displaced residents.",
+            ]
+        )
+
+        articles = fetcher._parse_ddg_results(search_report)
+
+        self.assertEqual(len(articles), 2)
+        self.assertEqual(
+            articles[0].title,
+            "Good News Network reports a major kindness story",
+        )
+        self.assertEqual(articles[0].url, "https://example.com/story")
+        self.assertEqual(
+            articles[0].description,
+            "Volunteers helped hundreds of families after a storm.",
+        )
+        self.assertEqual(
+            articles[1].title,
+            "BBC highlights an uplifting community rescue",
+        )
+        self.assertEqual(articles[1].url, "https://example.com/bbc")
+
+
 class GoodNewsSummarizerTest(unittest.TestCase):
     def _config(self, tmp_dir: Path) -> GoodNewsConfig:
         base = load_config()
