@@ -205,7 +205,7 @@ Structure the output clearly with Markdown headings.
     try:
         client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         response = client.chat.completions.create(
-            model="gpt-5-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a wise and compassionate theologian and pastor."},
                 {"role": "user", "content": prompt}
