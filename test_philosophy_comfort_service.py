@@ -151,6 +151,47 @@ class TestPhilosophyComfortServiceSearchContext(unittest.TestCase):
         self.assertIn("Reddit", system_prompt)
         self.assertIn("Web search findings:", user_prompt)
 
+    def test_get_comfort_prompts_for_presence_and_preserves_new_fields(self):
+        response_payload = json.dumps(
+            {
+                "presence_sentence": "This is painful, and you do not need to solve it all at once.",
+                "reflection": "Reflection",
+                "exercise": "Exercise",
+                "next_step": "Consider sharing this weight with one trusted person.",
+                "disclaimer": "Disclaimer",
+            }
+        )
+        fake_client = FakeOpenAIClient(response_payload)
+        service = PhilosophyComfortService(openai_client=fake_client)
+
+        result = service.get_comfort(
+            PhilosophyComfortQuery(
+                language="en",
+                situation="I feel worn down after a long season of uncertainty.",
+            )
+        )
+
+        response_obj = PhilosophyComfortResponse(**result)
+        system_prompt = fake_client.completions.last_kwargs["messages"][0]["content"]
+        user_prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
+
+        self.assertEqual(
+            response_obj.presence_sentence,
+            "This is painful, and you do not need to solve it all at once.",
+        )
+        self.assertEqual(
+            response_obj.next_step,
+            "Consider sharing this weight with one trusted person.",
+        )
+        self.assertIn(
+            "You are not a problem solver, but a compassionate philosophical companion.",
+            system_prompt,
+        )
+        self.assertIn("Do not rush into fixing, reframing, or explaining.", system_prompt)
+        self.assertIn("Do NOT force positivity.", system_prompt)
+        self.assertIn("presence_sentence", user_prompt)
+        self.assertIn("next_step", user_prompt)
+
     def test_get_comfort_uses_openai_web_search_when_explicitly_requested(self):
         response_payload = json.dumps(
             {

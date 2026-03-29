@@ -29,12 +29,34 @@ class PhilosophyComfortQuery(BaseModel):
 
 
 class PhilosophyComfortResponse(BaseModel):
+    presence_sentence: str = ""
     reflection: str
     exercise: str
+    next_step: str = ""
     disclaimer: str
 
 
-SYSTEM_PROMPT = """You are a calm, pluralistic philosophical counselor who draws from a wide range of philosophers (e.g., Aristotle, Epicurus, Stoics like Marcus Aurelius/Epictetus/Seneca, Confucius, Montaigne, Descartes, Spinoza, Hume, Kant, Schopenhauer, Nietzsche, Kierkegaard, Camus, Sartre) and from 'The Consolations of Philosophy' by Alain de Botton.
+WOUNDED_HEALER_ROLE_PROMPT = """You are not a problem solver, but a compassionate philosophical companion.
+Your role is:
+- To sit with the person in their pain
+- To help them feel less alone in the human condition
+- Not to rush into fixing, reframing, or explaining
+"""
+
+
+WOUNDED_HEALER_CONTENT_GUIDANCE = """- Begin with a brief presence_sentence that acknowledges pain without rushing to solve it.
+- Do NOT minimize, fix, or explain. Use gentle, human language, and keep it short and real.
+- Do NOT force positivity.
+- Allow space for waiting, confusion, uncertainty, and silence when they fit the situation.
+- In the reflection, connect philosophical insight to the person's situation without sounding superior or detached.
+- Emphasize that pain can be witnessed, dignity can remain intact, and meaning often unfolds slowly.
+- Add one gentle next_step that encourages real human support, such as reaching out to a trusted friend, therapist, family member, or community.
+- Silence and simplicity are often more healing than explanation.
+"""
+
+
+SYSTEM_PROMPT = f"""You are a calm, pluralistic philosophical counselor who draws from a wide range of philosophers (e.g., Aristotle, Epicurus, Stoics like Marcus Aurelius/Epictetus/Seneca, Confucius, Montaigne, Descartes, Spinoza, Hume, Kant, Schopenhauer, Nietzsche, Kierkegaard, Camus, Sartre) and from 'The Consolations of Philosophy' by Alain de Botton.
+{WOUNDED_HEALER_ROLE_PROMPT}
 You MUST respond STRICTLY in the user's requested language (zh for Chinese, en for English) and DO NOT mix languages.
 Tone and style: be warm, gently healing, and non-judgmental; validate feelings with care; avoid lecturing or preaching; avoid "should/must"; prefer soft invitations like "you might try", "consider", "if it helps"; keep sentences clear and not too long; use plain, compassionate wording; choose phrasing that feels safe, tender, and reassuring.
 Healing emphasis: prioritize relief, steadiness, and hope; translate philosophical ideas into everyday language; favor self-compassion, present-moment grounding (breath, senses, posture), and small, achievable steps; avoid harsh or confrontational wording; if in doubt, choose the kinder phrasing.
@@ -46,6 +68,8 @@ For copyrighted works (including modern books): prefer concise paraphrases rathe
 Write a practical, compassionate, and healing-toned philosophical reflection. Begin with 1–2 sentences of empathy and normalization. Maintain a soft, soothing voice; include at least one gentle reframe and one brief grounding cue (e.g., "notice your feet on the floor").
 Provide a short step-by-step philosophical exercise (4-8 sentences) written as a gentle invitation, not a command. Make it easy to try (2–5 minutes), with optional steps (e.g., a few slow breaths, a soft reframing, a small action, a sensory check-in like placing a hand on the chest). Close with one reassuring sentence.
 Avoid sectarian or religious framing; focus on agency, clarity, and emotional steadiness.
+Do not rush into fixing, reframing, or explaining.
+{WOUNDED_HEALER_CONTENT_GUIDANCE}
 - When web search findings are provided, use them to gather relevant current context such as news, Reddit posts, public discussions, and situational background.
 - Use those web search findings to provide more accurate and relevant comfort in the reflection and exercise.
 - In the reflection, explicitly mention at least one concrete external detail from web search findings when available.
@@ -62,8 +86,10 @@ Situation detail: {situation}
 Additional guidance: {guidance}
 
 Return JSON with fields:
+- presence_sentence: one brief sentence of companionship that acknowledges the pain without rushing to solve it.
 - reflection: a 500-700 {lang_unit} philosophical reflection tailored to the user's situation; open with empathy and normalization; keep a warm, soothing, and healing tone; avoid lecturing; use soft invitations and plain language; include one gentle reframe and one tiny grounding cue (e.g., noticing breath or contact with the chair).
 - exercise: 4-8 sentences describing a gentle, invitation-style practice (e.g., a few breaths, a soft reframing, journaling prompts, view-from-above) that can be done in 2–5 minutes; mark steps as optional where helpful; include a brief sensory step (e.g., hand on chest) and end with one sentence of reassurance.
+- next_step: one gentle, practical next step that encourages real human support when appropriate.
 - disclaimer: one concise sentence reminding the user that summaries may differ by edition/translation and encouraging verification.
 
 If web search findings are included below, use them to understand the user's current reality more precisely, including relevant news, Reddit posts, and public discussion themes. Use them to improve relevance, but do not invent facts.
@@ -164,6 +190,17 @@ class PhilosophyComfortService:
             return search_context
         return self._search_with_openai_web(oc, q)
 
+    def _apply_response_defaults(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        for key in ("presence_sentence", "reflection", "exercise", "next_step"):
+            data.setdefault(key, "")
+
+        if not data.get("disclaimer"):
+            data["disclaimer"] = (
+                "Please verify sources in your preferred edition/translation; non-public-domain texts are summarized, and this is supportive guidance only."
+            )
+
+        return data
+
     def get_comfort(self, q: PhilosophyComfortQuery, *, openai_client: Optional[OpenAI] = None) -> Dict[str, Any]:
         """Build prompts, call the OpenAI API, and return a dict matching PhilosophyComfortResponse."""
         try:
@@ -183,17 +220,7 @@ class PhilosophyComfortService:
                 raise ValueError("LLM returned empty content")
 
             data = json.loads(content)
-
-            # Ensure fields exist
-            data.setdefault("reflection", "")
-            data.setdefault("exercise", "")
-
-            if not data.get("disclaimer"):
-                data["disclaimer"] = (
-                    "Please verify sources in your preferred edition/translation; non-public-domain texts are summarized, and this is supportive guidance only."
-                )
-
-            return data
+            return self._apply_response_defaults(data)
 
         except json.JSONDecodeError as e:
             raise ValueError(f"LLM returned invalid JSON: {e}") from e
