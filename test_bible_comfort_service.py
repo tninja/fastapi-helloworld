@@ -214,6 +214,75 @@ class TestBibleComfortServiceSearchContext(unittest.TestCase):
         self.assertIn("devotional", user_prompt)
         self.assertIn("prayer", user_prompt)
 
+    def test_get_comfort_prompts_for_presence_and_preserves_new_fields(self):
+        response_payload = json.dumps(
+            {
+                "passages": [],
+                "presence_sentence": "This is hard, and you do not need to rush through it.",
+                "devotional": "Comfort",
+                "prayer": "Prayer",
+                "next_step": "Ask a trusted Christian friend to pray with you.",
+                "disclaimer": "Disclaimer",
+            }
+        )
+        fake_client = FakeOpenAIClient(response_payload)
+        service = BibleComfortService(openai_client=fake_client)
+
+        result = service.get_comfort(
+            BibleComfortQuery(
+                language="en",
+                situation="I feel numb after a painful setback.",
+            )
+        )
+
+        response_obj = BibleComfortResponse(**result)
+        system_prompt = fake_client.completions.last_kwargs["messages"][0]["content"]
+        user_prompt = fake_client.completions.last_kwargs["messages"][1]["content"]
+
+        self.assertEqual(
+            response_obj.presence_sentence,
+            "This is hard, and you do not need to rush through it.",
+        )
+        self.assertEqual(
+            response_obj.next_step,
+            "Ask a trusted Christian friend to pray with you.",
+        )
+        self.assertIn("Do not rush into fixing or explaining", system_prompt)
+        self.assertIn("lament Psalms", system_prompt)
+        self.assertIn(
+            "Avoid over-explaining or giving theological analysis.",
+            system_prompt,
+        )
+        self.assertIn("presence_sentence", user_prompt)
+        self.assertIn("next_step", user_prompt)
+
+    def test_build_messages_includes_remaining_wounded_healer_prompt_guidance(self):
+        service = BibleComfortService(openai_client=FakeOpenAIClient("{}"))
+
+        messages = service.build_messages(
+            BibleComfortQuery(
+                language="en",
+                situation="I feel unseen in a season of grief.",
+            )
+        )
+
+        system_prompt = messages[0]["content"]
+        self.assertIn(
+            "You are not a problem solver, but a compassionate Christian companion.",
+            system_prompt,
+        )
+        self.assertIn("To sit with the person in their pain", system_prompt)
+        self.assertIn("To gently guide them to God's presence", system_prompt)
+        self.assertIn("Do NOT minimize, fix, or explain", system_prompt)
+        self.assertIn("God sees", system_prompt)
+        self.assertIn("God is present", system_prompt)
+        self.assertIn("God is at work (even if unseen)", system_prompt)
+        self.assertIn("request for presence, not just change", system_prompt)
+        self.assertIn(
+            "Silence and simplicity are often more healing than explanation.",
+            system_prompt,
+        )
+
     def test_get_comfort_uses_openai_web_search_and_includes_findings_in_prompt(self):
         response_payload = json.dumps(
             {

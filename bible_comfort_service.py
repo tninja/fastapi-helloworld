@@ -7,6 +7,9 @@ from comfort_search import DuckDuckGoSearchProvider, SearchFindingsFormatter, Se
 
 # DONE: Update "Optional Guidance" from input box to combo box, add couple of common used candidates option for this particular bible comfort use cases. Put this to the top: 列举一个最类似处境的圣经正面人物 详细说明他们的类似经历
 
+# DONE: Improve this code with analysis inside @负伤的治疗者.txt. Chatgpt give the improvement suggestions there
+
+# DONE: Check @负伤的治疗者.txt. Did you implement all suggestion in that file to current code?
 
 def _init_openai_client() -> Optional[OpenAI]:
     """Initialize OpenAI client if API key is available; otherwise return None.
@@ -36,12 +39,34 @@ class BiblePassage(BaseModel):
 
 class BibleComfortResponse(BaseModel):
     passages: List[BiblePassage]
+    presence_sentence: str = ""
     devotional: str
     prayer: str
+    next_step: str = ""
     disclaimer: str
 
 
-SYSTEM_PROMPT = """You are a Christian pastoral counselor and Bible study assistant serving a Christian audience.
+WOUNDED_HEALER_ROLE_PROMPT = """You are not a problem solver, but a compassionate Christian companion.
+Your role is:
+- To sit with the person in their pain
+- To gently guide them to God's presence
+- Not to rush into fixing or explaining
+"""
+
+
+WOUNDED_HEALER_CONTENT_GUIDANCE = """- Begin with a brief presence sentence that acknowledges pain without trying to solve it.
+- Do NOT minimize, fix, or explain. Use gentle, human language, and keep it short and real.
+- When the user is in pain, do not force positivity. Allow lament Psalms and space for waiting, confusion, and silence when they fit the situation.
+- In the reflection, show how the Scripture meets the person's situation and emphasize that God sees, God is present, and God is at work (even if unseen).
+- Write a reverent, concise prayer (4–8 sentences). Keep it simple, honest, and not preachy.
+- In the prayer, include acknowledgment of pain, trust in God, and request for presence, not just change.
+- Add one gentle next step that encourages real human support, such as praying with a trusted Christian friend, pastor, family member, or fellowship group.
+- Silence and simplicity are often more healing than explanation.
+"""
+
+
+SYSTEM_PROMPT = f"""You are a Christian pastoral counselor and Bible study assistant serving a Christian audience.
+{WOUNDED_HEALER_ROLE_PROMPT}
 You MUST respond STRICTLY in the user's requested language (zh for Chinese, en for English).
 DO NOT mix languages. All output, including Bible references, must be in the selected language.
 
@@ -50,6 +75,8 @@ Tone and style (professional, Scripture-centered):
 - Ground counsel in Scripture and historic Christian understanding; avoid interfaith syncretism.
 - Lead with empathy without over-emphasizing therapeutic language; avoid clichés and platitudes.
 - Be concise and structured; avoid debates and speculative theology.
+- Do not rush into fixing or explaining.
+- Avoid over-explaining or giving theological analysis.
 
 Verse accuracy requirements:
 - Ensure every reference (book name, chapter:verse range) is accurate and commonly recognized in the requested language.
@@ -63,7 +90,7 @@ Content requirements:
 - For short_quote: give at most a very brief paraphrase (<= 20 words/chars) or leave empty.
 - Write a pastoral devotional (500–700 zh characters / 500–700 English words) with a professional tone for Christians.
 - Begin the devotional with 1–2 empathetic sentences, then provide Scripture-based reflection or healing.
-- Write a reverent, concise prayer (4–8 sentences).
+{WOUNDED_HEALER_CONTENT_GUIDANCE}
 - Avoid heavy emphasis on therapeutic techniques; keep the focus on biblical encouragement and practical wisdom.
 - When web search findings are provided, use them to gather relevant current context such as news, Reddit posts, public discussions, and situational background.
 - Use those web search findings to provide more accurate and relevant comfort, including better-matched passages, devotional reflection, and prayer.
@@ -90,8 +117,10 @@ Return JSON with fields:
   - short_quote (string, <= 20 words/chars; a minimal paraphrase; MAY be empty)
   - reason (string, 1–2 sentences explaining why this passage fits)
   - full_passage_text (string, VERBATIM full text from a public-domain version. Use WEB for English; use CUV for Chinese. Ensure the verses exactly match the cited reference.)
+- presence_sentence: one brief sentence of companionship that acknowledges the pain without rushing to fix or explain it.
 - devotional: a 300–500 {lang_unit} pastoral reflection for Christians, professional in tone; begin with 1–2 empathetic sentences, then provide Scripture-based reflection / healing.
 - prayer: 4–8 sentences, reverent and concise.
+- next_step: one gentle, practical next step that encourages connection with a trusted Christian person or community when appropriate.
 - disclaimer: one sentence kindly asking the user to verify in their preferred translation.
 
 If web search findings are included below, use them to understand the user's current reality more precisely, including relevant news, Reddit posts, and public discussion themes. Use them to improve relevance, but keep Scripture as the primary authority and do not invent facts.
@@ -192,6 +221,19 @@ class BibleComfortService:
             return search_context
         return self._search_with_openai_web(oc, q)
 
+    def _apply_response_defaults(self, data: Dict[str, Any], q: BibleComfortQuery) -> Dict[str, Any]:
+        for key in ("presence_sentence", "devotional", "prayer", "next_step"):
+            data.setdefault(key, "")
+
+        if not data.get("disclaimer"):
+            data["disclaimer"] = (
+                "请在你常用的圣经译本中核对经文原文与上下文；以上解读仅作灵修参考。"
+                if q.language.startswith("zh")
+                else "Please verify these references in your preferred Bible translation; the reflection is for devotional support."
+            )
+
+        return data
+
     def get_comfort(self, q: BibleComfortQuery, *, openai_client: Optional[OpenAI] = None) -> Dict[str, Any]:
         """
         Builds the prompt, calls the OpenAI API, and processes the response.
@@ -228,18 +270,7 @@ class BibleComfortService:
                         p["short_quote"] = ""
             data["passages"] = passages
 
-            # Ensure other required fields have default values if missing from LLM response
-            data.setdefault("devotional", "")
-            data.setdefault("prayer", "")
-
-            if not data.get("disclaimer"):
-                data["disclaimer"] = (
-                    "请在你常用的圣经译本中核对经文原文与上下文；以上解读仅作灵修参考。"
-                    if q.language.startswith("zh")
-                    else "Please verify these references in your preferred Bible translation; the reflection is for devotional support."
-                )
-
-            return data
+            return self._apply_response_defaults(data, q)
 
         except json.JSONDecodeError as e:
             raise ValueError(f"LLM returned invalid JSON: {e}") from e
